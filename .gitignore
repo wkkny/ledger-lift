@@ -1,0 +1,9 @@
+.DS_Store
+.env
+.env.*
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+# real ledger photos and their outputs stay private
+samples/private/
