@@ -47,10 +47,10 @@ If you start the app or tests from inside another Electron app (some editors and
 
 ## How it works
 
-- `src/renderer` is the Svelte interface, built with [shadcn-svelte](https://shadcn-svelte.com) (the Svelte port of shadcn/ui) on Tailwind v4, and it follows the system light or dark setting. Components live in `src/renderer/src/lib/components/ui`; the theme tokens are at the top of `src/renderer/src/app.css`, so changing `--primary` re-colours everything. Add more with `pnpm dlx shadcn-svelte@latest add <component>`. It shrinks each photo to 1600 px on the long edge before sending it. Full-size phone photos overflow the model's context window and slow it down.
+- `src/renderer` is the React interface, built with [shadcn/ui](https://ui.shadcn.com) components (on Radix) and Tailwind v4, and it follows the system light or dark setting. Components live in `src/renderer/src/components/ui`; the theme tokens are at the top of `src/renderer/src/app.css`, so changing `--primary` re-colours everything. It shrinks each photo to 1600 px on the long edge before sending it. Full-size phone photos overflow the model's context window and slow it down.
 - `src/main` is the app. It starts and stops Ollama, downloads the model with progress, keeps the model loaded between pages, and streams each finished row to the interface. Set `OLLAMA_HOST` if Ollama listens somewhere other than `127.0.0.1:11434`.
 - `src/preload` is the only bridge between them. The page is sandboxed with no Node access, and can't navigate away or open windows.
-- The default model is `qwen3-vl:2b-instruct`. The plain `qwen3-vl:2b` tag reasons for 30 to 100 seconds before answering, so avoid it. The model can be changed under **Advanced** in the app.
+- The default model is `qwen3-vl:2b-instruct`. The plain `qwen3-vl:2b` tag reasons for 30 to 100 seconds before answering, so avoid it. The model can be changed from the **Model** picker in the app.
 
 ## Current limits
 

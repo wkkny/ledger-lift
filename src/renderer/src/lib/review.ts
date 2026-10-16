@@ -27,10 +27,8 @@ export function needsAttention(row: Row): boolean {
 }
 
 /** Editing a value means the owner must look at the row again before export. */
-export function editField(row: Row, key: FieldKey, value: string): void {
-  row[key] = value;
-  row.uncertainFields = row.uncertainFields.filter((field) => field !== key);
-  row.reviewed = false;
+export function editField(row: Row, key: FieldKey, value: string): Row {
+  return { ...row, [key]: value, uncertainFields: row.uncertainFields.filter((field) => field !== key), reviewed: false };
 }
 
 export function unreviewedCount(rows: Row[]): number {
