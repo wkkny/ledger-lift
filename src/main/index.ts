@@ -33,7 +33,7 @@ function handle<T>(channel: string, run: (event: IpcMainInvokeEvent, ...args: un
 function startOllama(): Promise<void> {
   starting ??= (async () => {
     if (await ollama.isRunning()) return
-    ollamaProcess = await ollama.start()
+    await ollama.start((child) => (ollamaProcess = child))
   })().finally(() => (starting = null))
   return starting
 }

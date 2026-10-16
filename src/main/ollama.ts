@@ -169,15 +169,19 @@ export async function status(model: string): Promise<Status> {
   }
 }
 
-/** Starts `ollama serve` and waits until it answers. The caller keeps the process so it can stop it on quit. */
-export async function start(): Promise<ChildProcess> {
+/**
+ * Starts `ollama serve` and waits until it answers. `onSpawn` gets the process the moment it exists, so the
+ * caller can stop it on quit even if the app closes while Ollama is still starting up.
+ */
+export async function start(onSpawn: (child: ChildProcess) => void): Promise<void> {
   const binary = findBinary()
   if (!binary) throw new Error('Ollama is not installed on this computer.')
   const child = spawn(binary, ['serve'], { stdio: 'ignore', windowsHide: true })
+  onSpawn(child)
   let failure: Error | null = null
   child.on('error', (error) => (failure = new Error(`Couldn't start Ollama: ${error.message}`)))
   for (let attempt = 0; attempt < 80; attempt++) {
-    if (await isRunning()) return child
+    if (await isRunning()) return
     if (failure) throw failure
     if (child.exitCode !== null) {
       throw new Error('Ollama stopped right after starting. Try opening the Ollama app once, then retry.')

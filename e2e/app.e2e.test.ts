@@ -1,11 +1,13 @@
 // Drives the real, built app (main process, preload bridge, and interface) against a fake Ollama.
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { ElectronApplication, Page } from 'playwright'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { startFakeOllama, type FakeOllama, type FakeOptions } from './fake-ollama'
 import { launchApp } from './launch'
+import { findBinary } from '../src/main/ollama'
 import { makePng } from './png'
 
 let directory: string
@@ -160,5 +162,26 @@ describe('security', () => {
     await page.evaluate(() => { location.href = 'https://example.com/' })
     await page.waitForTimeout(500)
     expect(page.url()).toBe(before)
+  })
+})
+
+describe('managing Ollama', () => {
+  it.skipIf(!findBinary())('does not leave Ollama running if the app quits while Ollama is still starting', async () => {
+    // A free port where no Ollama is listening, so the app has to start one.
+    const port = await new Promise<number>((resolve) => {
+      const probe = createServer().listen(0, '127.0.0.1', () => {
+        const { port } = probe.address() as { port: number }
+        probe.close(() => resolve(port))
+      })
+    })
+    const up = () => fetch(`http://127.0.0.1:${port}/api/version`, { signal: AbortSignal.timeout(1000) }).then((r) => r.ok, () => false)
+    app = await launchApp({ OLLAMA_HOST: `127.0.0.1:${port}` })
+    const page = await app.firstWindow()
+    await page.locator('.setup').getByText('Starting Ollama…').waitFor() // the app has spawned it but it is not answering yet
+    expect(await up()).toBe(false)
+    await app.close()
+    app = undefined
+    await new Promise((resolve) => setTimeout(resolve, 4000))
+    expect(await up(), 'Ollama was left running after the app quit').toBe(false)
   })
 })
