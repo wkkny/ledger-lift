@@ -44,10 +44,11 @@
   ondrop={drop}
 >
   <label class="upload-zone" class:has-image={!!file} class:drag-over={dragging}>
+    <!-- Visually hidden rather than `hidden`, so the picker stays reachable with Tab and Enter or Space. -->
     <input
+      class="visually-hidden"
       type="file"
       accept="image/jpeg,image/png,image/webp"
-      hidden
       onchange={(event) => {
         choose(event.currentTarget.files?.[0]);
         event.currentTarget.value = '';

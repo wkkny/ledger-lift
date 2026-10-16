@@ -234,3 +234,5 @@ footer span:last-child { font-family: system-ui, sans-serif; font-size: 10px; le
 td input.uncertain:not([type="checkbox"]) { border-color: #e3c97f; background: #fbf0cf; }
 .reading-row td { padding: 10px 6px; color: #7c877d; font-size: 11px; }
 .notice { margin: 11px 0 0; color: var(--green); font-size: 11px; overflow-wrap: anywhere; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.upload-zone:has(input:focus-visible) { outline: 2px solid var(--green); outline-offset: 2px; }
