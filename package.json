@@ -2,32 +2,35 @@
   "name": "ledger-lift",
   "version": "0.1.0",
   "description": "Turn a photo of a handwritten sales ledger into reviewed rows and a CSV, on your own computer.",
-  "type": "module",
+  "private": true,
+  "main": "./out/main/index.js",
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
-    "preview": "vite preview",
-    "prepare": "svelte-kit sync || echo ''",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-    "tauri": "tauri",
-    "test": "vitest run"
+    "postinstall": "install-electron",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && svelte-check --tsconfig tsconfig.web.json",
+    "test": "vitest run",
+    "test:e2e": "electron-vite build && vitest run --config vitest.e2e.config.mts",
+    "dist": "electron-vite build && electron-builder",
+    "dist:dir": "electron-vite build && electron-builder --dir",
+    "web": "vite --config vite.web.config.mts"
   },
-  "license": "MIT",
   "dependencies": {
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2"
+    "undici": "^8.12.1"
   },
   "devDependencies": {
-    "@sveltejs/adapter-static": "^3.0.10",
-    "@sveltejs/kit": "^2.65.1",
-    "@sveltejs/vite-plugin-svelte": "^7.1.2",
-    "@tauri-apps/cli": "^2",
-    "svelte": "^5.56.3",
-    "svelte-check": "^4.6.0",
-    "typescript": "~6.0.3",
-    "vite": "^8.0.16",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@types/node": "^26.6.5",
+    "electron": "^44.7.2",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^6.0.0",
+    "playwright": "^1.64.1",
+    "svelte": "^5.57.2",
+    "svelte-check": "^4.7.6",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.4",
     "vitest": "^5.0.4"
   },
-  "private": true
+  "author": "Ledger Lift"
 }

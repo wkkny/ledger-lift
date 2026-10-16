@@ -1,0 +1,3 @@
+# Build the desktop app on Electron, not Tauri
+
+ADR 0002 chose Tauri for its small footprint. We switched to Electron because the app, its backend, and its tests are then all TypeScript, contributors need no Rust toolchain, and Playwright can drive the real built app end to end (with a fake or real Ollama), which a Tauri window on macOS cannot do. The cost is size: the installer grows from about 2 MB to about 128 MB, and the app uses more memory, which competes with the model on a small computer. Everything else in ADR 0002 stands: the app still starts and stops Ollama, downloads the model with progress, and keeps it loaded between pages.

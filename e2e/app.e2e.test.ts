@@ -1,0 +1,164 @@
+// Drives the real, built app (main process, preload bridge, and interface) against a fake Ollama.
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import type { ElectronApplication, Page } from 'playwright'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { startFakeOllama, type FakeOllama, type FakeOptions } from './fake-ollama'
+import { launchApp } from './launch'
+import { makePng } from './png'
+
+let directory: string
+let photo: string
+let fake: FakeOllama
+let app: ElectronApplication | undefined
+
+beforeAll(() => {
+  directory = mkdtempSync(join(tmpdir(), 'ledger-e2e-'))
+  photo = join(directory, 'page.png')
+  writeFileSync(photo, makePng(64, 48)) // the interface shrinks and re-encodes whatever photo it is given
+  return () => rmSync(directory, { recursive: true, force: true })
+})
+
+afterEach(async () => {
+  await app?.close().catch(() => {})
+  app = undefined
+  await fake?.close()
+})
+
+async function launch(options: FakeOptions): Promise<{ page: Page; savePath: string }> {
+  fake = await startFakeOllama(options)
+  const savePath = join(directory, `saved-${Date.now()}.csv`)
+  app = await launchApp({ OLLAMA_HOST: fake.host })
+  // The native save dialog can't be driven; answer it with a file in the temp directory.
+  await app.evaluate(({ dialog }, path) => {
+    dialog.showSaveDialog = (async () => ({ canceled: false, filePath: path })) as typeof dialog.showSaveDialog
+  }, savePath)
+  const page = await app.firstWindow()
+  return { page, savePath }
+}
+
+const readButton = (page: Page) => page.locator('.primary-button')
+const rows = (page: Page) => page.locator('tr.entry-row')
+
+describe('reading a page', () => {
+  it('shows each row while the page is still being read, then saves the reviewed rows as a CSV', async () => {
+    const { page, savePath } = await launch({
+      rows: [
+        { item: 'Rice 5kg', quantity: '1', amount: '1450' },
+        { item: 'Bar soap', quantity: '4', amount: '', uncertain: ['amount'] },
+        { item: 'Salt', quantity: '3', amount: '180' }
+      ],
+      rowDelayMs: 400
+    })
+    await page.getByText('Local model ready').waitFor()
+    expect(await readButton(page).isDisabled()).toBe(true) // no photo yet
+
+    await page.locator('input[type=file]').setInputFiles(photo)
+    await readButton(page).click()
+
+    // Streaming: a row is on screen while the read is still running.
+    await page.waitForFunction(
+      () => document.querySelectorAll('tr.entry-row').length >= 1 && (document.querySelector('.primary-button') as HTMLButtonElement).disabled
+    )
+    await page.getByRole('button', { name: /Read this page/ }).waitFor()
+    await page.waitForFunction(() => document.querySelectorAll('tr.entry-row').length === 3)
+    expect(await page.locator('.entry-count').textContent()).toBe('3 entries')
+
+    // The download stays locked until every row is reviewed; the unreadable amount is highlighted.
+    const download = page.getByRole('button', { name: /Download CSV/ })
+    expect(await download.isDisabled()).toBe(true)
+    expect(await page.locator('tr.needs-review').count()).toBe(1)
+    await page.locator('tr.entry-row').nth(1).locator('input').nth(3).fill('480') // fix the amount
+    for (const box of await page.locator('.review-checkbox').all()) await box.check()
+    expect(await download.isDisabled()).toBe(false)
+    await download.click()
+    await page.getByText(/^Saved to /).waitFor()
+
+    const csv = readFileSync(savePath, 'utf8')
+    expect(csv.startsWith('﻿')).toBe(true)
+    expect(csv.replace('﻿', '').split('\r\n')).toEqual([
+      '"Date","Item or description","Quantity","Amount"',
+      '"5/10","Rice 5kg","1","1450"',
+      '"5/10","Bar soap","4","480"',
+      '"5/10","Salt","3","180"'
+    ])
+
+    // The request that reached Ollama kept the settings that avoid its small default context window.
+    const body = fake.chatBodies[0]
+    expect(body.options.num_ctx).toBeGreaterThan(4096)
+    expect(body.model).toBe('qwen3-vl:2b-instruct')
+    expect(body.messages[1].images[0].length).toBeGreaterThan(20)
+  })
+
+  it('stops on request and keeps the rows already read', async () => {
+    const { page } = await launch({ rows: [{ item: 'Rice 5kg', quantity: '1', amount: '1450' }, { item: 'Salt', quantity: '1', amount: '5' }], hangAfterFirstRow: true })
+    await page.getByText('Local model ready').waitFor()
+    await page.locator('input[type=file]').setInputFiles(photo)
+    await readButton(page).click()
+    await page.waitForFunction(() => document.querySelectorAll('tr.entry-row').length === 1)
+    await page.getByRole('button', { name: 'Stop' }).click()
+    await page.getByText('Stopped. 1 row was read before you stopped.').waitFor()
+    expect(await rows(page).count()).toBe(1)
+    expect(await readButton(page).isDisabled()).toBe(false)
+  })
+
+  it("shows Ollama's own error and hides the empty results", async () => {
+    const { page } = await launch({ chatError: { status: 400, message: 'request exceeds the available context size' } })
+    await page.getByText('Local model ready').waitFor()
+    await page.locator('input[type=file]').setInputFiles(photo)
+    await readButton(page).click()
+    await page.getByText(/400.*exceeds the available context size/).waitFor()
+    expect(await page.locator('#results').count()).toBe(0)
+    expect(await readButton(page).isDisabled()).toBe(false)
+  })
+
+  it('rejects a file that is not an image without calling Ollama', async () => {
+    const { page } = await launch({})
+    await page.getByText('Local model ready').waitFor()
+    const text = join(directory, 'notes.txt')
+    writeFileSync(text, 'not a photo')
+    await page.locator('input[type=file]').setInputFiles(text)
+    await page.getByText('Choose a JPEG, PNG, or WebP image.').waitFor()
+    expect(fake.chatBodies).toHaveLength(0)
+  })
+})
+
+describe('first run', () => {
+  it('offers the one-time model download, shows progress, and becomes ready', async () => {
+    const { page } = await launch({ models: [] })
+    await page.getByText('One-time download: the reading model').waitFor()
+    expect(await page.locator('.local-status').textContent()).toContain('Setup needed')
+    await page.getByRole('button', { name: 'Download the model' }).click()
+    await page.getByText(/Downloading the reading model · 50%/).waitFor()
+    await page.getByText('Local model ready').waitFor()
+    expect(await page.locator('.setup').count()).toBe(0)
+    expect(fake.pulled).toEqual(['qwen3-vl:2b-instruct'])
+  })
+})
+
+describe('security', () => {
+  it('keeps Node out of the page and exposes only the app bridge', async () => {
+    const { page } = await launch({})
+    await page.getByText('Local model ready').waitFor()
+    const exposed = await page.evaluate(() => ({
+      require: typeof (window as any).require,
+      process: typeof (window as any).process,
+      bridge: Object.keys((window as any).ledger).sort()
+    }))
+    expect(exposed.require).toBe('undefined')
+    expect(exposed.process).toBe('undefined')
+    expect(exposed.bridge).toEqual(
+      ['cancelExtract', 'defaultModel', 'extractEntries', 'getStatus', 'openDownloadPage', 'pullModel', 'saveCsv', 'startOllama', 'warmModel'].sort()
+    )
+  })
+
+  it('does not let the page navigate away', async () => {
+    const { page } = await launch({})
+    await page.getByText('Local model ready').waitFor()
+    const before = page.url()
+    await page.evaluate(() => { location.href = 'https://example.com/' })
+    await page.waitForTimeout(500)
+    expect(page.url()).toBe(before)
+  })
+})
