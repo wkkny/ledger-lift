@@ -50,9 +50,9 @@
 >
   <label
     class={cn(
-      'upload-zone border-input bg-muted/30 hover:bg-muted/60 relative flex min-h-44 cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border border-dashed px-4 text-center transition-colors',
+      'upload-zone border-input bg-muted/40 hover:bg-muted/70 relative flex min-h-40 cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border border-dashed px-4 text-center transition-[background-color,border-color] duration-200',
       'has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-ring/50 has-[input:focus-visible]:ring-3',
-      dragging && 'border-ring bg-muted/60'
+      dragging && 'border-ring bg-muted/70'
     )}
   >
     <!-- Visually hidden rather than `hidden`, so the picker stays reachable with Tab and Enter or Space. -->
@@ -65,13 +65,15 @@
         event.currentTarget.value = '';
       }}
     />
-    <span class="bg-muted text-muted-foreground mb-1 grid size-10 place-items-center rounded-lg"><Upload class="size-5" /></span>
+    <span class="bg-background text-muted-foreground mb-1 grid size-9 place-items-center rounded-md ring-1 ring-border/70" aria-hidden="true">
+      <Upload class="size-4" />
+    </span>
     <span class="text-sm">Drop a photo here, or <strong class="font-medium underline underline-offset-4">choose a file</strong></span>
     <span class="text-muted-foreground text-xs">JPG, PNG or WebP · one page at a time</span>
     {#if file && previewUrl}
       <div class="preview-wrap bg-card absolute inset-0 flex items-center justify-center gap-4 p-3">
-        <img src={previewUrl} alt="Selected ledger page" class="max-h-full max-w-[60%] rounded-md border object-contain" />
-        <span class="text-muted-foreground max-w-32 text-xs [overflow-wrap:anywhere]">{file.name}</span>
+        <img src={previewUrl} alt="Selected ledger page" width="240" height="160" class="max-h-full max-w-[60%] rounded-md object-contain ring-1 ring-border/80" />
+        <span class="text-muted-foreground max-w-32 truncate text-xs" title={file.name}>{file.name}</span>
         <Button
           type="button"
           variant="secondary"
@@ -80,7 +82,7 @@
           aria-label="Remove selected image"
           onclick={(event) => { event.preventDefault(); event.stopPropagation(); onclear(); }}
         >
-          <X />
+          <X aria-hidden="true" />
         </Button>
       </div>
     {/if}

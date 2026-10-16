@@ -71,13 +71,10 @@
   });
 </script>
 
-{#if phase !== 'ready'}
-  <Alert class="setup px-4 py-3" variant={phase === 'error' ? 'destructive' : 'default'} aria-live="polite">
-    {#if phase === 'checking' || phase === 'starting'}
-      <Loader class="animate-spin" />
-      <AlertTitle>{phase === 'checking' ? 'Checking that the reading model is ready…' : 'Starting Ollama…'}</AlertTitle>
-    {:else if phase === 'missing-ollama'}
-      <Download />
+{#if phase === 'missing-ollama' || phase === 'need-model' || phase === 'downloading' || phase === 'error'}
+  <Alert class="setup border-border/80 bg-card px-4 py-3.5 shadow-[0_1px_0_var(--surface-tint)]" variant={phase === 'error' ? 'destructive' : 'default'} aria-live="polite">
+    {#if phase === 'missing-ollama'}
+      <Download aria-hidden="true" />
       <AlertTitle>Install Ollama to read pages on this computer</AlertTitle>
       <AlertDescription>
         <p>Ollama runs the reading model locally, so your ledger photos never leave this computer. Install it, then come back here.</p>
@@ -87,21 +84,21 @@
         </div>
       </AlertDescription>
     {:else if phase === 'need-model'}
-      <Download />
+      <Download aria-hidden="true" />
       <AlertTitle>One-time download: the reading model</AlertTitle>
       <AlertDescription>
-        <p>About 2 GB. It is saved on this computer and only needs downloading once.</p>
+        <p>About 2&nbsp;GB. It is saved on this computer and only needs downloading once.</p>
         <div class="mt-3"><Button size="sm" onclick={download}>Download the model</Button></div>
       </AlertDescription>
     {:else if phase === 'downloading'}
-      <Loader class="animate-spin" />
+      <Loader class="animate-spin" aria-hidden="true" />
       <AlertTitle>Downloading the reading model{percent === null ? '…' : ` · ${percent}%`}</AlertTitle>
       <AlertDescription>
         <p>{progress?.status ?? 'Starting the download…'}</p>
         <Progress class="mt-3 {percent === null ? 'animate-pulse' : ''}" value={percent ?? 100} aria-label="Model download progress" />
       </AlertDescription>
     {:else if phase === 'error'}
-      <CircleAlert />
+      <CircleAlert aria-hidden="true" />
       <AlertTitle>The reading model isn't ready</AlertTitle>
       <AlertDescription>
         <p>{detail}</p>
