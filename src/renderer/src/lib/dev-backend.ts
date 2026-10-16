@@ -31,7 +31,12 @@ export function installDevBackend(): void {
     },
     async getStatus() {
       await sleep(300)
-      return { running, binaryFound: installed, models: modelInstalled ? ['qwen3-vl:2b-instruct'] : [], modelReady: running && modelInstalled }
+      return {
+        running,
+        binaryFound: installed,
+        models: modelInstalled ? ['qwen3-vl:2b-instruct', 'llava:7b', 'minicpm-v:8b'] : [],
+        modelReady: running && modelInstalled
+      }
     },
     async startOllama() {
       track('startOllama')

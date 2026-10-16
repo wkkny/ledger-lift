@@ -42,6 +42,8 @@ async function launch(options: FakeOptions): Promise<{ page: Page; savePath: str
 
 const readButton = (page: Page) => page.locator('.primary-button')
 const rows = (page: Page) => page.locator('tr.entry-row')
+const waitUntilReady = (page: Page, timeout = 15_000) =>
+  page.waitForFunction(() => document.querySelector('#main')?.getAttribute('data-setup-phase') === 'ready', undefined, { timeout })
 
 describe('reading a page', () => {
   it('shows each row while the page is still being read, then saves the reviewed rows as a CSV', async () => {
@@ -53,7 +55,7 @@ describe('reading a page', () => {
       ],
       rowDelayMs: 400
     })
-    await page.getByText('Local model ready').waitFor()
+    await waitUntilReady(page)
     expect(await readButton(page).isDisabled()).toBe(true) // no photo yet
 
     await page.locator('input[type=file]').setInputFiles(photo)
@@ -95,7 +97,7 @@ describe('reading a page', () => {
 
   it('stops on request and keeps the rows already read', async () => {
     const { page } = await launch({ rows: [{ item: 'Rice 5kg', quantity: '1', amount: '1450' }, { item: 'Salt', quantity: '1', amount: '5' }], hangAfterFirstRow: true })
-    await page.getByText('Local model ready').waitFor()
+    await waitUntilReady(page)
     await page.locator('input[type=file]').setInputFiles(photo)
     await readButton(page).click()
     await page.waitForFunction(() => document.querySelectorAll('tr.entry-row').length === 1)
@@ -107,7 +109,7 @@ describe('reading a page', () => {
 
   it("shows Ollama's own error and hides the empty results", async () => {
     const { page } = await launch({ chatError: { status: 400, message: 'request exceeds the available context size' } })
-    await page.getByText('Local model ready').waitFor()
+    await waitUntilReady(page)
     await page.locator('input[type=file]').setInputFiles(photo)
     await readButton(page).click()
     await page.getByText(/400.*exceeds the available context size/).waitFor()
@@ -117,7 +119,7 @@ describe('reading a page', () => {
 
   it('rejects a file that is not an image without calling Ollama', async () => {
     const { page } = await launch({})
-    await page.getByText('Local model ready').waitFor()
+    await waitUntilReady(page)
     const text = join(directory, 'notes.txt')
     writeFileSync(text, 'not a photo')
     await page.locator('input[type=file]').setInputFiles(text)
@@ -130,10 +132,10 @@ describe('first run', () => {
   it('offers the one-time model download, shows progress, and becomes ready', async () => {
     const { page } = await launch({ models: [] })
     await page.getByText('One-time download: the reading model').waitFor()
-    expect(await page.locator('.local-status').textContent()).toContain('Setup needed')
+    expect(await page.locator('#main').getAttribute('data-setup-phase')).toBe('need-model')
     await page.getByRole('button', { name: 'Download the model' }).click()
     await page.getByText(/Downloading the reading model · 50%/).waitFor()
-    await page.getByText('Local model ready').waitFor()
+    await waitUntilReady(page)
     expect(await page.locator('.setup').count()).toBe(0)
     expect(fake.pulled).toEqual(['qwen3-vl:2b-instruct'])
   })
@@ -142,7 +144,7 @@ describe('first run', () => {
 describe('security', () => {
   it('keeps Node out of the page and exposes only the app bridge', async () => {
     const { page } = await launch({})
-    await page.getByText('Local model ready').waitFor()
+    await waitUntilReady(page)
     const exposed = await page.evaluate(() => ({
       require: typeof (window as any).require,
       process: typeof (window as any).process,
@@ -157,7 +159,7 @@ describe('security', () => {
 
   it('does not let the page navigate away', async () => {
     const { page } = await launch({})
-    await page.getByText('Local model ready').waitFor()
+    await waitUntilReady(page)
     const before = page.url()
     await page.evaluate(() => { location.href = 'https://example.com/' })
     await page.waitForTimeout(500)
@@ -177,7 +179,7 @@ describe('managing Ollama', () => {
     const up = () => fetch(`http://127.0.0.1:${port}/api/version`, { signal: AbortSignal.timeout(1000) }).then((r) => r.ok, () => false)
     app = await launchApp({ OLLAMA_HOST: `127.0.0.1:${port}` })
     const page = await app.firstWindow()
-    await page.locator('.setup').getByText('Starting Ollama…').waitFor() // the app has spawned it but it is not answering yet
+    await page.waitForFunction(() => document.querySelector('#main')?.getAttribute('data-setup-phase') === 'starting') // the app has spawned it but it is not answering yet
     expect(await up()).toBe(false)
     await app.close()
     app = undefined

@@ -1,17 +1,15 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
-  import { cancelExtract, defaultModel, errorText, extractEntries, saveCsv } from './lib/api';
+  import { onMount, tick, untrack } from 'svelte';
+  import { cancelExtract, defaultModel, errorText, extractEntries, getStatus, saveCsv } from './lib/api';
   import { prepareImage } from './lib/image';
   import { toCsvEntries, toRow, type Row } from './lib/review';
-  import { Badge } from '$lib/components/ui/badge/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
-  import * as Card from '$lib/components/ui/card/index.js';
   import * as Collapsible from '$lib/components/ui/collapsible/index.js';
-  import { Input } from '$lib/components/ui/input/index.js';
   import { Label } from '$lib/components/ui/label/index.js';
-  import ChevronDown from '@lucide/svelte/icons/chevron-down';
+  import Check from '@lucide/svelte/icons/check';
+  import ChevronUp from '@lucide/svelte/icons/chevron-up';
+  import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
   import Loader from '@lucide/svelte/icons/loader-circle';
-  import Lock from '@lucide/svelte/icons/lock';
   import ScanText from '@lucide/svelte/icons/scan-text';
   import Results from './lib/Results.svelte';
   import Setup from './lib/Setup.svelte';
@@ -29,17 +27,25 @@
   let saving = $state(false);
   let message = $state('');
   let notice = $state('');
+  let modelMenuOpen = $state(false);
+  let availableModels = $state<string[]>([]);
 
   const ready = $derived(phase === 'ready');
-  const statusDot = $derived(
-    ready ? 'bg-emerald-500' : phase === 'checking' || phase === 'starting' || phase === 'downloading' ? 'bg-amber-400' : 'bg-red-500',
-  );
-  const statusText = $derived(
-    ready ? 'Local model ready' : phase === 'checking' ? 'Checking local model…' : phase === 'starting' ? 'Starting Ollama…' : phase === 'downloading' ? 'Downloading model…' : 'Setup needed',
-  );
 
   onMount(async () => {
     model = committedModel = await defaultModel();
+    availableModels = [model];
+    void refreshModels(model);
+  });
+
+  $effect(() => {
+    const name = committedModel;
+    void phase;
+    if (!name) return;
+    untrack(() => {
+      if (!availableModels.includes(name)) availableModels = [name, ...availableModels];
+      void refreshModels(name);
+    });
   });
 
   $effect(() => {
@@ -48,6 +54,21 @@
     const timer = setInterval(() => (elapsed += 1), 1000);
     return () => clearInterval(timer);
   });
+
+  async function refreshModels(name: string) {
+    try {
+      const status = await getStatus(name);
+      const names = status.models.length > 0 ? status.models : [name];
+      availableModels = names.includes(name) ? names : [name, ...names];
+    } catch {
+      availableModels = [name];
+    }
+  }
+
+  function chooseModel(name: string) {
+    model = committedModel = name.trim();
+    modelMenuOpen = false;
+  }
 
   async function read() {
     if (!file) return;
@@ -91,71 +112,91 @@
   }
 </script>
 
-<header class="border-b">
-  <div class="mx-auto flex h-14 max-w-3xl items-center justify-between px-6">
-    <div class="flex items-center gap-2.5 text-sm font-semibold tracking-tight">
-      <span class="bg-primary text-primary-foreground grid size-7 place-items-center rounded-lg font-serif text-base">L</span>
-      Ledger Lift
+<a href="#main" class="skip-link">Skip to content</a>
+
+<header class="border-border/70 bg-card/80 sticky top-0 z-40 border-b backdrop-blur-md">
+  <div class="mx-auto flex h-14 max-w-2xl items-center px-5 sm:px-6">
+    <div class="flex items-center gap-2.5">
+      <span class="bg-primary text-primary-foreground grid size-7 place-items-center rounded-md text-sm font-semibold tracking-tight" aria-hidden="true">L</span>
+      <span class="text-[0.95rem] font-semibold tracking-tight">Ledger Lift</span>
     </div>
-    <Badge variant="outline" class="local-status gap-2 font-normal">
-      <span class="size-1.5 rounded-full {statusDot}"></span>{statusText}
-    </Badge>
   </div>
 </header>
 
-<main class="mx-auto max-w-3xl space-y-6 px-6 py-10">
-  <section class="space-y-2">
-    <h1 class="text-3xl font-semibold tracking-tight">Turn a ledger page into rows you can use</h1>
-    <p class="text-muted-foreground max-w-xl text-sm leading-relaxed">
-      Add one photo of a handwritten sales page and get a spreadsheet you can work with. Your ledger stays on this computer.
-    </p>
-  </section>
-
+<main id="main" class="mx-auto max-w-2xl space-y-6 px-5 py-6 sm:px-6 sm:py-8" data-setup-phase={phase}>
   {#if committedModel}
     <Setup model={committedModel} bind:phase />
   {/if}
 
-  <Card.Root aria-label="Ledger extraction">
-    <Card.Header>
-      <Card.Title>Add a ledger page</Card.Title>
-      <Card.Description>A clear, well-lit photo works best.</Card.Description>
-    </Card.Header>
-    <Card.Content class="space-y-4">
-      <Uploader {file} onchoose={(chosen) => { file = chosen; message = ''; }} onclear={() => (file = null)} onreject={(text) => (message = text)} />
+  <section class="bg-card ring-border/80 space-y-5 rounded-xl p-5 shadow-[0_1px_0_var(--surface-tint)] ring-1 sm:p-6" aria-label="Ledger extraction">
+    <h1 class="text-base font-semibold tracking-tight">Add a ledger page</h1>
 
-      <Collapsible.Root>
+    <Uploader {file} onchoose={(chosen) => { file = chosen; message = ''; }} onclear={() => (file = null)} onreject={(text) => (message = text)} />
+
+    <div class="space-y-1.5">
+      <Label for="model-trigger">Model</Label>
+      <Collapsible.Root
+        bind:open={modelMenuOpen}
+        onOpenChange={(open) => {
+          if (open && committedModel) void refreshModels(committedModel);
+        }}
+      >
         <Collapsible.Trigger>
           {#snippet child({ props })}
-            <Button {...props} variant="ghost" size="sm" class="text-muted-foreground -ml-2.5">
-              Advanced: reading model <ChevronDown />
-            </Button>
+            <button
+              {...props}
+              id="model-trigger"
+              type="button"
+              class="border-input bg-background hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-ring/50 flex h-9 w-full items-center gap-2 rounded-lg border px-2.5 text-left outline-none transition-[background-color,border-color] duration-200 focus-visible:ring-3"
+              aria-label="Reading model"
+            >
+              <span class="min-w-0 flex-1 truncate font-mono text-xs">{model || 'Choose a model'}</span>
+              {#if modelMenuOpen}
+                <ChevronUp class="text-muted-foreground size-3.5 shrink-0" aria-hidden="true" />
+              {:else}
+                <ChevronsUpDown class="text-muted-foreground size-3.5 shrink-0 opacity-70" aria-hidden="true" />
+              {/if}
+            </button>
           {/snippet}
         </Collapsible.Trigger>
-        <Collapsible.Content class="space-y-2 pt-2">
-          <Label for="model-name">Local vision model</Label>
-          <Input id="model-name" bind:value={model} onchange={() => (committedModel = model.trim())} autocomplete="off" spellcheck={false} class="font-mono text-xs" />
-          <p class="text-muted-foreground text-xs">Any Ollama vision model. Models that think before answering are much slower.</p>
+        <Collapsible.Content class="pt-1.5">
+          <ul class="border-input bg-background max-h-48 overflow-y-auto rounded-lg border py-1" role="listbox" aria-label="Installed models">
+            {#each availableModels as name (name)}
+              <li role="option" aria-selected={name === model}>
+                <button
+                  type="button"
+                  class="hover:bg-muted flex w-full items-center gap-2 px-2.5 py-2 text-left font-mono text-xs transition-colors {name === model ? 'bg-muted' : ''}"
+                  onclick={() => chooseModel(name)}
+                >
+                  <Check class="size-3.5 shrink-0 {name === model ? 'opacity-100' : 'opacity-0'}" aria-hidden="true" />
+                  <span class="min-w-0 truncate">{name}</span>
+                </button>
+              </li>
+            {:else}
+              <li class="text-muted-foreground px-2.5 py-2 text-xs">No models found yet.</li>
+            {/each}
+          </ul>
         </Collapsible.Content>
       </Collapsible.Root>
-    </Card.Content>
-    <Card.Footer class="flex-col items-stretch gap-2">
-      <Button size="lg" class="primary-button h-10 w-full" disabled={!file || !ready || reading} onclick={read}>
-        {#if reading}<Loader class="animate-spin" />{:else}<ScanText />{/if}
+    </div>
+
+    <div class="flex flex-col items-stretch gap-2 pt-1">
+      <Button size="lg" class="primary-button h-11 w-full transition-[background-color,transform,opacity] duration-200" disabled={!file || !ready || reading} onclick={read}>
+        {#if reading}
+          <Loader class="animate-spin" aria-hidden="true" />
+        {:else}
+          <ScanText aria-hidden="true" />
+        {/if}
         {reading ? `Reading page… ${elapsed}s` : 'Read this page'}
       </Button>
       {#if reading}
-        <Button variant="link" size="sm" class="stop-button text-destructive mx-auto" onclick={cancelExtract}>Stop</Button>
+        <Button variant="link" size="sm" class="stop-button text-destructive mx-auto h-8" onclick={cancelExtract}>Stop</Button>
       {/if}
       <p class="message text-destructive text-sm empty:hidden" role="status" aria-live="polite">{message}</p>
-    </Card.Footer>
-  </Card.Root>
+    </div>
+  </section>
 
   {#if showResults}
     <Results bind:rows {reading} {saving} {notice} onsave={save} onrestart={restart} />
   {/if}
-
-  <p class="text-muted-foreground flex items-start gap-2 text-xs leading-relaxed">
-    <Lock class="mt-0.5 size-3.5 shrink-0" />
-    <span><strong class="text-foreground font-medium">Your records stay yours.</strong> Images are processed by Ollama on your computer. Ledger Lift doesn’t send them anywhere else.</span>
-  </p>
 </main>

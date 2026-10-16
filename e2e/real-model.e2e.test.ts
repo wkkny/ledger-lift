@@ -32,7 +32,7 @@ describe.skipIf(!image)('with the real model', () => {
         dialog.showSaveDialog = (async () => ({ canceled: false, filePath: path })) as typeof dialog.showSaveDialog
       }, savePath)
       const page = await app.firstWindow()
-      await page.getByText('Local model ready').waitFor({ timeout: 60_000 })
+      await page.waitForFunction(() => document.querySelector('#main')?.getAttribute('data-setup-phase') === 'ready', undefined, { timeout: 60_000 })
 
       await page.locator('input[type=file]').setInputFiles(image!)
       const clicked = Date.now()

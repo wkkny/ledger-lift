@@ -12,7 +12,7 @@ importers:
         specifier: ^8.12.1
         version: 8.12.1
     devDependencies:
-      '@fontsource-variable/inter':
+      '@fontsource-variable/outfit':
         specifier: ^5.3.0
         version: 5.3.0
       '@internationalized/date':
@@ -208,8 +208,8 @@ packages:
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
 
-  '@fontsource-variable/inter@5.3.0':
-    resolution: {integrity: sha512-OupL48va4JNofb97w6NYeF9S7W/kHNKM0Er8Dem5nqi4jeOLrVJDoE8tZEpnMJmtkvNbB1EIPPwHcdkF6b1oUA==}
+  '@fontsource-variable/outfit@5.3.0':
+    resolution: {integrity: sha512-fPb5XnYK0k7SbR++HEmm4+ZqDszmLKQ+sPRUr8oQ/KNC0vy6r6hazJFe8iYozv4cqlHbvJ/JECkJWrfDodUMVQ==}
 
   '@internationalized/date@3.12.4':
     resolution: {integrity: sha512-M1dEn4c1U1HsSlaVR8upZtSqvXrTkHDfv18H01uCSJyjVLDxnBR38v/fMxecmlwXKR4i9HeZcmgQAPE6A+aGJQ==}
@@ -2204,7 +2204,7 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
-  '@fontsource-variable/inter@5.3.0': {}
+  '@fontsource-variable/outfit@5.3.0': {}
 
   '@internationalized/date@3.12.4':
     dependencies:
