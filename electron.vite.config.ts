@@ -1,5 +1,6 @@
 import { resolve } from 'node:path'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
+import tailwindcss from '@tailwindcss/vite'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 
 export default defineConfig({
@@ -14,7 +15,7 @@ export default defineConfig({
     build: { rollupOptions: { output: { format: 'cjs', entryFileNames: '[name].js' } } }
   },
   renderer: {
-    resolve: { alias: { '@shared': resolve('src/shared') } },
-    plugins: [svelte()]
+    resolve: { alias: { '@shared': resolve('src/shared'), $lib: resolve('src/renderer/src/lib') } },
+    plugins: [tailwindcss(), svelte()]
   }
 })

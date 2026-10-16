@@ -1,7 +1,7 @@
 import type { ChildProcess } from 'node:child_process'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { app, BrowserWindow, dialog, ipcMain, session, shell, type IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, session, shell, type IpcMainInvokeEvent } from 'electron'
 import type { Entry } from '../shared/types'
 import { toCsv } from './csv'
 import * as ollama from './ollama'
@@ -93,7 +93,8 @@ function createWindow(): void {
     minWidth: 520,
     minHeight: 600,
     show: false,
-    backgroundColor: '#f7f5ef',
+    // Matches the interface's background so there is no flash before it loads.
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0a0a0a' : '#ffffff',
     webPreferences: { preload: join(__dirname, '../preload/index.js'), sandbox: true, contextIsolation: true, nodeIntegration: false }
   })
   // Tests run the real app without putting a window on the owner's screen.

@@ -11,7 +11,7 @@
     "useDefineForClassFields": true,
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": ["vite/client", "svelte"],
-    "paths": { "@shared/*": ["./src/shared/*"] }
+    "paths": { "@shared/*": ["./src/shared/*"], "$lib": ["./src/renderer/src/lib"], "$lib/*": ["./src/renderer/src/lib/*"] }
   },
   "include": ["src/renderer/src/**/*", "src/renderer/src/**/*.svelte", "src/shared/**/*"]
 }

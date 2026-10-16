@@ -1,4 +1,9 @@
 <script lang="ts">
+  import { Button } from '$lib/components/ui/button/index.js';
+  import { cn } from '$lib/utils.js';
+  import Upload from '@lucide/svelte/icons/upload';
+  import X from '@lucide/svelte/icons/x';
+
   let { file, onchoose, onclear, onreject }: {
     file: File | null;
     onchoose: (file: File) => void;
@@ -43,10 +48,16 @@
   ondragleave={(event) => { event.preventDefault(); dragging = false; }}
   ondrop={drop}
 >
-  <label class="upload-zone" class:has-image={!!file} class:drag-over={dragging}>
+  <label
+    class={cn(
+      'upload-zone border-input bg-muted/30 hover:bg-muted/60 relative flex min-h-44 cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border border-dashed px-4 text-center transition-colors',
+      'has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-ring/50 has-[input:focus-visible]:ring-3',
+      dragging && 'border-ring bg-muted/60'
+    )}
+  >
     <!-- Visually hidden rather than `hidden`, so the picker stays reachable with Tab and Enter or Space. -->
     <input
-      class="visually-hidden"
+      class="visually-hidden sr-only"
       type="file"
       accept="image/jpeg,image/png,image/webp"
       onchange={(event) => {
@@ -54,19 +65,23 @@
         event.currentTarget.value = '';
       }}
     />
-    <span class="upload-icon" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M20 27V7m0 0-7 7m7-7 7 7M8 23v9a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2v-9" /></svg></span>
-    <span class="upload-title">Drop a photo here, or <strong>choose a file</strong></span>
-    <span class="upload-hint">JPG, PNG or WebP · one page at a time</span>
+    <span class="bg-muted text-muted-foreground mb-1 grid size-10 place-items-center rounded-lg"><Upload class="size-5" /></span>
+    <span class="text-sm">Drop a photo here, or <strong class="font-medium underline underline-offset-4">choose a file</strong></span>
+    <span class="text-muted-foreground text-xs">JPG, PNG or WebP · one page at a time</span>
     {#if file && previewUrl}
-      <div class="preview-wrap">
-        <img src={previewUrl} alt="Selected ledger page" />
-        <span>{file.name}</span>
-        <button
+      <div class="preview-wrap bg-card absolute inset-0 flex items-center justify-center gap-4 p-3">
+        <img src={previewUrl} alt="Selected ledger page" class="max-h-full max-w-[60%] rounded-md border object-contain" />
+        <span class="text-muted-foreground max-w-32 text-xs [overflow-wrap:anywhere]">{file.name}</span>
+        <Button
           type="button"
-          class="remove-image"
+          variant="secondary"
+          size="icon-sm"
+          class="absolute top-2 right-2"
           aria-label="Remove selected image"
           onclick={(event) => { event.preventDefault(); event.stopPropagation(); onclear(); }}
-        >×</button>
+        >
+          <X />
+        </Button>
       </div>
     {/if}
   </label>

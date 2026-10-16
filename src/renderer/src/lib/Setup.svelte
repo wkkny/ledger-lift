@@ -2,6 +2,12 @@
   import { untrack } from 'svelte';
   import { errorText, getStatus, openDownloadPage, pullModel, startOllama, warmModel } from './api';
   import type { PullProgress, SetupPhase } from '@shared/types';
+  import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
+  import { Button } from '$lib/components/ui/button/index.js';
+  import { Progress } from '$lib/components/ui/progress/index.js';
+  import CircleAlert from '@lucide/svelte/icons/circle-alert';
+  import Download from '@lucide/svelte/icons/download';
+  import Loader from '@lucide/svelte/icons/loader-circle';
 
   let { model, phase = $bindable('checking') }: { model: string; phase: SetupPhase } = $props();
 
@@ -66,36 +72,41 @@
 </script>
 
 {#if phase !== 'ready'}
-  <section class="setup" aria-live="polite">
-    {#if phase === 'checking'}
-      <p>Checking that the reading model is ready…</p>
-    {:else if phase === 'starting'}
-      <p>Starting Ollama…</p>
+  <Alert class="setup px-4 py-3" variant={phase === 'error' ? 'destructive' : 'default'} aria-live="polite">
+    {#if phase === 'checking' || phase === 'starting'}
+      <Loader class="animate-spin" />
+      <AlertTitle>{phase === 'checking' ? 'Checking that the reading model is ready…' : 'Starting Ollama…'}</AlertTitle>
     {:else if phase === 'missing-ollama'}
-      <h2>Install Ollama to read pages on this computer</h2>
-      <p>Ollama runs the reading model locally, so your ledger photos never leave this computer. Install it, then come back here.</p>
-      <div class="setup-actions">
-        <button class="setup-button" onclick={openDownloadPage}>Download Ollama</button>
-        <button class="setup-button secondary" onclick={() => attempt++}>I've installed it, check again</button>
-      </div>
+      <Download />
+      <AlertTitle>Install Ollama to read pages on this computer</AlertTitle>
+      <AlertDescription>
+        <p>Ollama runs the reading model locally, so your ledger photos never leave this computer. Install it, then come back here.</p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <Button size="sm" onclick={openDownloadPage}>Download Ollama</Button>
+          <Button size="sm" variant="outline" onclick={() => attempt++}>I've installed it, check again</Button>
+        </div>
+      </AlertDescription>
     {:else if phase === 'need-model'}
-      <h2>One-time download: the reading model</h2>
-      <p>About 2 GB. It is saved on this computer and only needs downloading once.</p>
-      <div class="setup-actions">
-        <button class="setup-button" onclick={download}>Download the model</button>
-      </div>
+      <Download />
+      <AlertTitle>One-time download: the reading model</AlertTitle>
+      <AlertDescription>
+        <p>About 2 GB. It is saved on this computer and only needs downloading once.</p>
+        <div class="mt-3"><Button size="sm" onclick={download}>Download the model</Button></div>
+      </AlertDescription>
     {:else if phase === 'downloading'}
-      <h2>Downloading the reading model{percent === null ? '…' : ` · ${percent}%`}</h2>
-      <p>{progress?.status ?? 'Starting the download…'}</p>
-      <div class="progress" class:indeterminate={percent === null} role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={percent ?? undefined}>
-        <div style:width={percent === null ? undefined : `${percent}%`}></div>
-      </div>
+      <Loader class="animate-spin" />
+      <AlertTitle>Downloading the reading model{percent === null ? '…' : ` · ${percent}%`}</AlertTitle>
+      <AlertDescription>
+        <p>{progress?.status ?? 'Starting the download…'}</p>
+        <Progress class="mt-3 {percent === null ? 'animate-pulse' : ''}" value={percent ?? 100} aria-label="Model download progress" />
+      </AlertDescription>
     {:else if phase === 'error'}
-      <h2>The reading model isn't ready</h2>
-      <p>{detail}</p>
-      <div class="setup-actions">
-        <button class="setup-button" onclick={() => attempt++}>Try again</button>
-      </div>
+      <CircleAlert />
+      <AlertTitle>The reading model isn't ready</AlertTitle>
+      <AlertDescription>
+        <p>{detail}</p>
+        <div class="mt-3"><Button size="sm" variant="outline" onclick={() => attempt++}>Try again</Button></div>
+      </AlertDescription>
     {/if}
-  </section>
+  </Alert>
 {/if}
