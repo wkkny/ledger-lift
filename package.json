@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
     "test:e2e": "electron-vite build && vitest run --config vitest.e2e.config.mts",
+    "score": "electron-vite build && vitest run e2e/score.e2e.test.ts --config vitest.e2e.config.mts --disable-console-intercept",
     "dist": "electron-vite build && electron-builder",
     "dist:dir": "electron-vite build && electron-builder --dir",
     "web": "vite --config vite.web.config.mts"

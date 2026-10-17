@@ -23,6 +23,23 @@ pnpm dev                # the real app, with hot reload
 pnpm dist               # an installer for this platform, in dist/
 ```
 
+## Measure how well it reads
+
+`pnpm score` reads your own pages with the real model and compares them to the correct rows you typed in. It reports, per field, how often the model was right, how many rows it missed or invented, and whether the fields it got wrong were the ones it highlighted for review.
+
+1. Make a private folder, such as `samples/private/mine/` (anything under `samples/private/` stays out of Git).
+2. For each page, add the photo and an answer file with the same name: `page1.jpg` and `page1.csv`, with the header `date,item,quantity,amount`. A photo without an answer file is read but not scored.
+3. Run it (Ollama must be installed; the app starts it):
+
+```sh
+LEDGER_SCORE_DIR=samples/private/mine pnpm score
+LEDGER_SCORE_MODEL=qwen3-vl:2b pnpm score   # optional: try another installed model
+```
+
+Dates match letter for letter, since the model is told not to normalize them. Capitalization, extra spaces, currency symbols and `5.00` vs `5` are forgiven for the headline numbers; the report also shows the strict letter-for-letter score. Details go to `score-report.json` in the same folder.
+
+Don't have handwritten pages yet? `docs/practice/` has a printable ruled page (`ledger-page.html`) and two sets of 15 sales with their answer files. Print the page, copy a set onto it in your own handwriting, photograph it in normal room light, and save the photo next to its `set-1.csv` or `set-2.csv`.
+
 ## Release (Windows)
 
 Bump `version` in `package.json`, commit, then push a matching tag:
