@@ -2,6 +2,7 @@ import { Check, ChevronUp, ChevronsUpDown, LoaderCircle, ScanText } from 'lucide
 import { useEffect, useState } from 'react'
 import { flushSync } from 'react-dom'
 import type { SetupPhase } from '@shared/types'
+import { Logo } from '@/components/Logo'
 import { Results } from '@/components/Results'
 import { Setup } from '@/components/Setup'
 import { Uploader } from '@/components/Uploader'
@@ -116,7 +117,7 @@ export default function App() {
       <header className="border-border/70 bg-card/80 sticky top-0 z-40 border-b backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-2xl items-center px-5 sm:px-6">
           <div className="flex items-center gap-2.5">
-            <span className="bg-primary text-primary-foreground grid size-7 place-items-center rounded-md text-sm font-semibold tracking-tight" aria-hidden="true">L</span>
+            <Logo className="size-7" />
             <span className="text-[0.95rem] font-semibold tracking-tight">Ledger Lift</span>
           </div>
         </div>
