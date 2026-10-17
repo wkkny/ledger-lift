@@ -23,6 +23,16 @@ pnpm dev                # the real app, with hot reload
 pnpm dist               # an installer for this platform, in dist/
 ```
 
+## Release (Windows)
+
+Bump `version` in `package.json`, commit, then push a matching tag:
+
+```sh
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+The **Windows release** workflow (`.github/workflows/release-windows.yml`) runs the checks on a Windows machine, builds `Ledger-Lift-<version>-setup.exe`, smoke-tests the packaged app, and creates a **draft** GitHub release. Review it and press **Publish**. It also runs by hand from the Actions tab, which builds the installer without making a release. The installer sets up for the current user only and needs no administrator rights.
+
 Checks:
 
 ```sh
