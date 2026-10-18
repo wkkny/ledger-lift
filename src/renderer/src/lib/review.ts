@@ -35,6 +35,11 @@ export function unreviewedCount(rows: Row[]): number {
   return rows.filter((row) => !row.reviewed).length;
 }
 
+/** Marks every row as checked, for an owner who has gone through the whole page. */
+export function markAllReviewed(rows: Row[]): Row[] {
+  return rows.map((row) => (row.reviewed ? row : { ...row, reviewed: true }));
+}
+
 export function reviewSummary(remaining: number, reading: boolean): string {
   if (reading) return 'Reading the page. Rows appear as they are found.';
   if (remaining === 0) return 'Every row is marked reviewed and ready to download.';

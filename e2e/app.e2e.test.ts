@@ -86,7 +86,15 @@ describe('reading a page', () => {
     expect(await download.isDisabled()).toBe(true)
     expect(await page.locator('tr.needs-review').count()).toBe(1)
     await page.locator('tr.entry-row').nth(1).locator('input').nth(3).fill('480') // fix the amount
-    for (const box of await page.locator('.review-checkbox').all()) await box.check()
+    const markAll = page.getByRole('button', { name: 'Mark all reviewed' })
+    await page.locator('.review-checkbox').first().click() // one row reviewed by hand
+    await markAll.click()
+    expect(await page.locator('.review-checkbox[data-state="checked"]').count()).toBe(3)
+    expect(await markAll.isDisabled()).toBe(true)
+    expect(await download.isDisabled()).toBe(false)
+    await page.locator('tr.entry-row').nth(2).locator('input').nth(1).fill('Salt 1kg') // an edit unmarks that row
+    expect(await download.isDisabled()).toBe(true)
+    await page.locator('.review-checkbox').nth(2).click()
     expect(await download.isDisabled()).toBe(false)
     await download.click()
     await page.getByText(/^Saved to /).waitFor()
@@ -97,7 +105,7 @@ describe('reading a page', () => {
       '"Date","Item or description","Quantity","Amount"',
       '"5/10","Rice 5kg","1","1450"',
       '"5/10","Bar soap","4","480"',
-      '"5/10","Salt","3","180"'
+      '"5/10","Salt 1kg","3","180"'
     ])
 
     // The request that reached Ollama kept the settings that avoid its small default context window.

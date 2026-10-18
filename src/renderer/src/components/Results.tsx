@@ -1,11 +1,11 @@
-import { ArrowLeft, Download, Info, LoaderCircle } from 'lucide-react'
+import { ArrowLeft, CheckCheck, Download, Info, LoaderCircle } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { FIELDS, canDownload, editField, isUncertain, needsAttention, reviewSummary, unreviewedCount, type Row } from '@/lib/review'
+import { FIELDS, canDownload, editField, isUncertain, markAllReviewed, needsAttention, reviewSummary, unreviewedCount, type Row } from '@/lib/review'
 import { cn } from '@/lib/utils'
 
 type Props = {
@@ -97,6 +97,9 @@ export function Results({ rows, onRows, reading, saving, notice, onSave, onResta
 
         <div className="border-border/70 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
           <span className="text-muted-foreground text-sm">{reviewSummary(remaining, reading)}</span>
+          <Button variant="outline" className="review-all-button" disabled={reading || remaining === 0} onClick={() => onRows(markAllReviewed(rows))}>
+            <CheckCheck aria-hidden="true" />Mark all reviewed
+          </Button>
           <Button className="download-button transition-[background-color,transform,opacity] duration-200" disabled={!canDownload(rows, reading) || saving} onClick={onSave}>
             <Download aria-hidden="true" />{saving ? 'Saving…' : 'Download CSV'}
           </Button>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canDownload, editField, needsAttention, reviewSummary, toRow, unreviewedCount } from './review';
+import { canDownload, editField, markAllReviewed, needsAttention, reviewSummary, toRow, unreviewedCount } from './review';
 import type { Entry } from '@shared/types';
 
 const entry = (overrides: Partial<Entry> = {}): Entry => ({
@@ -44,6 +44,16 @@ describe('review', () => {
     expect(reviewSummary(1, false)).toBe('Review and mark 1 row before downloading.');
     expect(reviewSummary(0, false)).toMatch(/ready to download/);
     expect(reviewSummary(2, true)).toMatch(/Reading the page/);
+  });
+
+  it('marks every row reviewed in one go, and an edit afterwards unmarks only that row', () => {
+    const rows = [toRow(entry()), { ...toRow(entry({ amount: '' })), reviewed: true }, toRow(entry())];
+    const all = markAllReviewed(rows);
+    expect(unreviewedCount(all)).toBe(0);
+    expect(all[1]).toBe(rows[1]); // rows already reviewed are left as they were
+    expect(rows[0].reviewed).toBe(false); // the original rows are untouched
+    const edited = editField(all[2], 'amount', '20');
+    expect(unreviewedCount([all[0], all[1], edited])).toBe(1);
   });
 
   it('gives every row its own id', () => {
