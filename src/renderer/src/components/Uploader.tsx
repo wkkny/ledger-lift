@@ -63,8 +63,9 @@ export function Uploader({ file, turns, onTurn, onChoose, onClear, onReject }: P
     >
       <label
         className={cn(
-          'upload-zone border-input bg-muted/40 hover:bg-muted/70 relative flex min-h-40 cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border border-dashed px-4 text-center transition-[background-color,border-color] duration-200',
+          'upload-zone border-input bg-muted/40 hover:bg-muted/70 relative flex cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border border-dashed px-4 text-center transition-[background-color,border-color] duration-200',
           'has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-ring/50 has-[input:focus-visible]:ring-3',
+          file && previewUrl ? 'h-24' : 'min-h-40',
           dragging && 'border-ring bg-muted/70'
         )}
       >
@@ -84,15 +85,15 @@ export function Uploader({ file, turns, onTurn, onChoose, onClear, onReject }: P
         <span className="text-sm">Drop a photo here, or <strong className="font-medium underline underline-offset-4">choose a file</strong></span>
         <span className="text-muted-foreground text-xs">JPG, PNG or WebP · one page at a time</span>
         {file && previewUrl && (
-          <div className="preview-wrap bg-card absolute inset-0 flex items-center justify-center gap-4 p-3">
+          <div className="preview-wrap bg-card absolute inset-0 flex items-center justify-center gap-4 p-2">
             <img
               src={previewUrl}
               alt="Selected ledger page"
               width={240}
               height={160}
               className="ring-border/80 max-h-full max-w-[60%] rounded-md object-contain ring-1 transition-transform duration-200"
-              // On its side the preview's width must fit the box's height.
-              style={{ transform: `rotate(${turns * 90}deg)`, ...(turns % 2 === 1 ? { maxHeight: 'none', maxWidth: '8.5rem' } : {}) }}
+              // On its side the preview's width must fit the box's height (6rem less the padding).
+              style={{ transform: `rotate(${turns * 90}deg)`, ...(turns % 2 === 1 ? { maxHeight: 'none', maxWidth: '4.5rem' } : {}) }}
             />
             <span className="text-muted-foreground max-w-32 truncate text-xs" title={file.name}>{file.name}</span>
             <div className="absolute top-2 right-2 flex gap-1.5">
