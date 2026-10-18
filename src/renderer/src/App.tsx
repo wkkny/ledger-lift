@@ -113,7 +113,7 @@ export default function App() {
     setTurns(0)
     setMessage('')
     setNotice('')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    document.querySelector('#add-page')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   function restart() {
@@ -143,7 +143,9 @@ export default function App() {
       <main id="main" className="mx-auto max-w-2xl space-y-6 px-5 py-6 sm:px-6 sm:py-8" data-setup-phase={phase}>
         {model && <Setup model={model} phase={phase} onPhase={setPhase} />}
 
-        <section className="bg-card ring-border/80 space-y-5 rounded-xl p-5 shadow-[0_1px_0_var(--surface-tint)] ring-1 sm:p-6" aria-label="Ledger extraction">
+        {showResults && <Results rows={rows} onRows={setRows} reading={reading} saving={saving} notice={notice} onSave={save} onAddPage={addPage} onRestart={restart} />}
+
+        <section id="add-page" className="bg-card ring-border/80 space-y-5 rounded-xl p-5 shadow-[0_1px_0_var(--surface-tint)] ring-1 sm:p-6" aria-label="Ledger extraction">
           <h1 className="text-base font-semibold tracking-tight">{keptRows > 0 ? 'Add another page' : 'Add a ledger page'}</h1>
 
           <Uploader
@@ -221,7 +223,6 @@ export default function App() {
           </div>
         </section>
 
-        {showResults && <Results rows={rows} onRows={setRows} reading={reading} saving={saving} notice={notice} onSave={save} onAddPage={addPage} onRestart={restart} />}
       </main>
     </>
   )
