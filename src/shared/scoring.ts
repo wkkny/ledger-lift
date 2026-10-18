@@ -47,11 +47,12 @@ export function parseAnswerCsv(text: string): AnswerRow[] {
   })
 }
 
-/** Forgives differences that do not change what was sold: case, spacing, currency symbols, `5.00` vs `5`. */
+/** Forgives differences that do not change what was sold: case, spacing (including `250 g` vs `250g`), currency symbols, `5.00` vs `5`. */
 export function lenient(field: Field, value: string): string {
   const text = value.trim().toLowerCase().replace(/\s+/g, ' ')
   if (field !== 'quantity' && field !== 'amount') return text
-  return text.replace(/[$₹£€]/g, '').replace(/(\d),(?=\d{3}\b)/g, '$1').replace(/(\d)\.0+$/, '$1').trim()
+  const unitsJoined = field === 'quantity' ? text.replace(/(\d) (?=[a-z])/g, '$1') : text // `250 g` = `250g`
+  return unitsJoined.replace(/[$₹£€]/g, '').replace(/(\d),(?=\d{3}\b)/g, '$1').replace(/(\d)\.0+$/, '$1').trim()
 }
 
 const sameField = (field: Field, a: string, b: string) => lenient(field, a) === lenient(field, b)
