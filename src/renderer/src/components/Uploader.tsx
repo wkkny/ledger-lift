@@ -16,6 +16,7 @@ type Props = {
 const ALLOWED = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_BYTES = 50 * 1024 * 1024
 
+/** The page photo is shown whole, beside the rows, so each row can be checked against it. */
 export function Uploader({ file, turns, onTurn, onChoose, onClear, onReject }: Props) {
   const [dragging, setDragging] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -63,9 +64,8 @@ export function Uploader({ file, turns, onTurn, onChoose, onClear, onReject }: P
     >
       <label
         className={cn(
-          'upload-zone border-input bg-muted/40 hover:bg-muted/70 relative flex cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border border-dashed px-4 text-center transition-[background-color,border-color] duration-200',
+          'upload-zone border-input bg-muted/40 hover:bg-muted/70 relative flex aspect-[3/4] w-full cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border border-dashed px-4 text-center transition-[background-color,border-color] duration-200',
           'has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-ring/50 has-[input:focus-visible]:ring-3',
-          file && previewUrl ? 'h-24' : 'min-h-40',
           dragging && 'border-ring bg-muted/70'
         )}
       >
@@ -85,17 +85,14 @@ export function Uploader({ file, turns, onTurn, onChoose, onClear, onReject }: P
         <span className="text-sm">Drop a photo here, or <strong className="font-medium underline underline-offset-4">choose a file</strong></span>
         <span className="text-muted-foreground text-xs">JPG, PNG or WebP · one page at a time</span>
         {file && previewUrl && (
-          <div className="preview-wrap bg-card absolute inset-0 flex items-center justify-center gap-4 p-2">
+          <div className="preview-wrap bg-card absolute inset-0 flex items-center justify-center">
             <img
               src={previewUrl}
               alt="Selected ledger page"
-              width={240}
-              height={160}
-              className="ring-border/80 max-h-full max-w-[60%] rounded-md object-contain ring-1 transition-transform duration-200"
-              // On its side the preview's width must fit the box's height (6rem less the padding).
-              style={{ transform: `rotate(${turns * 90}deg)`, ...(turns % 2 === 1 ? { maxHeight: 'none', maxWidth: '4.5rem' } : {}) }}
+              className="size-full object-contain p-2 transition-transform duration-200"
+              // The box is 3 wide by 4 high, so a page on its side shrinks to three quarters to stay inside it.
+              style={{ transform: `rotate(${turns * 90}deg)${turns % 2 === 1 ? ' scale(0.75)' : ''}` }}
             />
-            <span className="text-muted-foreground max-w-32 truncate text-xs" title={file.name}>{file.name}</span>
             <div className="absolute top-2 right-2 flex gap-1.5">
               <Button type="button" variant="secondary" size="icon-sm" className="rotate-left" aria-label="Turn the photo left" title="Turn the photo left" onClick={(event) => stay(event, () => onTurn(-1))}>
                 <RotateCcw aria-hidden="true" />
