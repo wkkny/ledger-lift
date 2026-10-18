@@ -13,6 +13,11 @@ import { cancelExtract, defaultModel, errorText, extractEntries, getStatus, save
 import { prepareImage, wrapTurns } from '@/lib/image'
 import { toCsvEntries, toRow, type Row } from '@/lib/review'
 import { cn } from '@/lib/utils'
+import type { Ctx } from '@/layout-prototypes/context'
+import { PrototypeSwitcher, initialVariant, type VariantKey } from '@/layout-prototypes/PrototypeSwitcher'
+import { VariantB } from '@/layout-prototypes/VariantB'
+import { VariantC } from '@/layout-prototypes/VariantC'
+import { VariantD } from '@/layout-prototypes/VariantD'
 
 export default function App() {
   const [model, setModel] = useState('')
@@ -33,6 +38,7 @@ export default function App() {
   const [availableModels, setAvailableModels] = useState<string[]>([])
 
   const ready = phase === 'ready'
+  const [variant, setVariant] = useState<VariantKey>(initialVariant)
 
   async function refreshModels(name: string) {
     try {
@@ -127,7 +133,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  return (
+  const original = (
     <>
       <a href="#main" className="skip-link">Skip to content</a>
 
@@ -224,6 +230,51 @@ export default function App() {
         </section>
 
       </main>
+    </>
+  )
+
+  // PROTOTYPE: whole-app layout variants, chosen with ?variant= or the bar at the bottom. Remove when one wins.
+  const ctx: Ctx = {
+    setup: model ? <Setup model={model} phase={phase} onPhase={setPhase} /> : null,
+    ready,
+    phase,
+    model,
+    models: availableModels,
+    setModel: (name) => setModel(name.trim()),
+    file,
+    turns,
+    onTurn: (step) => setTurns((current) => wrapTurns(current + step)),
+    onChoose: (chosen) => {
+      setFile(chosen)
+      setTurns(0)
+      setMessage('')
+    },
+    onClear: () => {
+      setFile(null)
+      setTurns(0)
+    },
+    onReject: setMessage,
+    rows,
+    setRows,
+    keptRows,
+    reading,
+    elapsed,
+    saving,
+    message,
+    notice,
+    read,
+    stop: cancelExtract,
+    save,
+    addPage,
+    restart
+  }
+  return (
+    <>
+      {variant === 'A' && original}
+      {variant === 'B' && <VariantB ctx={ctx} />}
+      {variant === 'C' && <VariantC ctx={ctx} />}
+      {variant === 'D' && <VariantD ctx={ctx} />}
+      <PrototypeSwitcher current={variant} onChange={setVariant} />
     </>
   )
 }
