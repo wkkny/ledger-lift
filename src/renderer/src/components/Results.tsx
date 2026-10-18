@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCheck, Download, FilePlus2, Info, LoaderCircle } from 'lucide-react'
+import { ArrowLeft, CheckCheck, Download, Info, LoaderCircle } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -18,11 +18,10 @@ type Props = {
   saving: boolean
   notice: string
   onSave: () => void
-  onAddPage: () => void
   onRestart: () => void
 }
 
-export function Results({ rows, onRows, reading, saving, notice, onSave, onAddPage, onRestart }: Props) {
+export function Results({ rows, onRows, reading, saving, notice, onSave, onRestart }: Props) {
   const remaining = unreviewedCount(rows)
   const update = (id: number, change: (row: Row) => Row) => onRows(rows.map((row) => (row.id === id ? change(row) : row)))
 
@@ -40,7 +39,7 @@ export function Results({ rows, onRows, reading, saving, notice, onSave, onAddPa
         <Alert className="border-border/70 bg-muted/40">
           <Info aria-hidden="true" />
           <AlertDescription>
-            Handwriting can be tricky. Entries highlighted in amber need extra attention. Mark every row reviewed to enable the CSV download.
+            Compare each row with the photo. Amber means the model was unsure, so look at it twice. Mark every row reviewed to enable the CSV download.
           </AlertDescription>
         </Alert>
 
@@ -114,14 +113,9 @@ export function Results({ rows, onRows, reading, saving, notice, onSave, onAddPa
         </div>
       </section>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Button variant="outline" size="sm" className="add-page" disabled={reading || rows.length === 0} onClick={onAddPage}>
-          <FilePlus2 aria-hidden="true" />Add another page
-        </Button>
-        <Button variant="ghost" size="sm" className="start-over text-muted-foreground" onClick={onRestart}>
-          <ArrowLeft aria-hidden="true" />Start over
-        </Button>
-      </div>
+      <Button variant="ghost" size="sm" className="start-over text-muted-foreground -mt-2 self-start" onClick={onRestart}>
+        <ArrowLeft aria-hidden="true" />Start over
+      </Button>
     </>
   )
 }
