@@ -57,6 +57,54 @@ const rows = (page: Page) => page.locator('tr.entry-row')
 const waitUntilReady = (page: Page, timeout = 15_000) =>
   page.waitForFunction(() => document.querySelector('#main')?.getAttribute('data-setup-phase') === 'ready', undefined, { timeout })
 
+describe('reading more than one page', () => {
+  it('adds a second page to the rows already read, and one download holds both', async () => {
+    const { page, savePath } = await launch({
+      rows: [
+        { item: 'Rice 5kg', quantity: '1', amount: '1450' },
+        { item: 'Salt', quantity: '3', amount: '180' }
+      ]
+    })
+    await waitUntilReady(page)
+    await page.locator('input[type=file]').setInputFiles(photo)
+    await readButton(page).click()
+    await page.waitForFunction(() => document.querySelectorAll('tr.entry-row').length === 2)
+    await page.getByRole('button', { name: /Read this page/ }).waitFor()
+    await page.locator('tr.entry-row').first().locator('input').nth(1).fill('Rice 10kg') // an edit on page 1
+
+    await page.getByRole('button', { name: 'Add another page' }).click()
+    expect(await page.getByRole('heading', { name: 'Add another page', level: 1 }).count()).toBe(1)
+    expect(await rows(page).count()).toBe(2) // page 1 stays on screen while page 2 is chosen
+    await page.locator('input[type=file]').setInputFiles(photo)
+    await readButton(page).click()
+    await page.waitForFunction(() => document.querySelectorAll('tr.entry-row').length === 4)
+    await page.getByRole('button', { name: /Read this page/ }).waitFor()
+    expect(await page.locator('.entry-count').textContent()).toBe('4 entries')
+    expect(await rows(page).first().locator('input').nth(1).inputValue()).toBe('Rice 10kg') // page 1 kept, edit included
+
+    // Reading page 2 again (say, after turning it) replaces page 2 only.
+    await readButton(page).click()
+    await page.waitForFunction(() => document.querySelectorAll('tr.entry-row').length === 4)
+    await page.getByRole('button', { name: /Read this page/ }).waitFor()
+    expect(await page.locator('.entry-count').textContent()).toBe('4 entries')
+
+    for (const box of await page.locator('.review-checkbox').all()) await box.check()
+    await page.getByRole('button', { name: /Download CSV/ }).click()
+    await page.getByText(/^Saved to /).waitFor()
+    expect(readFileSync(savePath, 'utf8').replace('﻿', '').split('\r\n')).toEqual([
+      '"Date","Item or description","Quantity","Amount"',
+      '"5/10","Rice 10kg","1","1450"',
+      '"5/10","Salt","3","180"',
+      '"5/10","Rice 5kg","1","1450"',
+      '"5/10","Salt","3","180"'
+    ])
+
+    await page.locator('.start-over').click()
+    expect(await rows(page).count()).toBe(0)
+    expect(await page.getByRole('heading', { name: 'Add a ledger page', level: 1 }).count()).toBe(1)
+  })
+})
+
 describe('reading a page', () => {
   it('shows each row while the page is still being read, then saves the reviewed rows as a CSV', async () => {
     const { page, savePath } = await launch({

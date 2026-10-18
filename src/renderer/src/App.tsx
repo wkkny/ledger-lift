@@ -21,6 +21,8 @@ export default function App() {
   /** Quarter turns clockwise the owner gave the photo, for a page photographed sideways. */
   const [turns, setTurns] = useState(0)
   const [rows, setRows] = useState<Row[]>([])
+  /** How many rows, counted from the top, came from pages read earlier. A new read keeps them. */
+  const [keptRows, setKeptRows] = useState(0)
   const [showResults, setShowResults] = useState(false)
   const [reading, setReading] = useState(false)
   const [elapsed, setElapsed] = useState(0)
@@ -66,7 +68,7 @@ export default function App() {
   async function read() {
     if (!file) return
     flushSync(() => {
-      setRows([])
+      setRows((current) => current.slice(0, keptRows))
       setMessage('')
       setNotice('')
       setReading(true)
@@ -85,7 +87,7 @@ export default function App() {
       else if (outcome.repeating) setMessage(`The model started repeating itself, so reading stopped after ${rowsRead}. Check the rest of the page by hand. If the photo is sideways, turn it with the rotate buttons and read again.`)
     } catch (error) {
       setMessage(errorText(error))
-      if (count === 0) setShowResults(false)
+      if (count === 0 && keptRows === 0) setShowResults(false)
     } finally {
       setReading(false)
     }
@@ -105,8 +107,18 @@ export default function App() {
     }
   }
 
+  function addPage() {
+    setKeptRows(rows.length)
+    setFile(null)
+    setTurns(0)
+    setMessage('')
+    setNotice('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   function restart() {
     setRows([])
+    setKeptRows(0)
     setShowResults(false)
     setFile(null)
     setTurns(0)
@@ -132,7 +144,7 @@ export default function App() {
         {model && <Setup model={model} phase={phase} onPhase={setPhase} />}
 
         <section className="bg-card ring-border/80 space-y-5 rounded-xl p-5 shadow-[0_1px_0_var(--surface-tint)] ring-1 sm:p-6" aria-label="Ledger extraction">
-          <h1 className="text-base font-semibold tracking-tight">Add a ledger page</h1>
+          <h1 className="text-base font-semibold tracking-tight">{keptRows > 0 ? 'Add another page' : 'Add a ledger page'}</h1>
 
           <Uploader
             file={file}
@@ -209,7 +221,7 @@ export default function App() {
           </div>
         </section>
 
-        {showResults && <Results rows={rows} onRows={setRows} reading={reading} saving={saving} notice={notice} onSave={save} onRestart={restart} />}
+        {showResults && <Results rows={rows} onRows={setRows} reading={reading} saving={saving} notice={notice} onSave={save} onAddPage={addPage} onRestart={restart} />}
       </main>
     </>
   )
