@@ -9,7 +9,7 @@ The photo is sent only to the local Ollama service on the same computer. Ledger 
 1. Open Ledger Lift. If Ollama isn't installed, the app says so, and its **Download Ollama** button opens the [Ollama download page](https://ollama.com/download). Run its installer (no administrator password needed); the app notices when it finishes and carries on by itself.
 2. Ledger Lift starts Ollama for you and offers a one-time download of the reading model (about 2 GB).
 3. Choose a photo of one ledger page. If the page is sideways in the preview, turn it with the rotate buttons. Then press **Read this page**. Rows appear as they are found.
-4. Fix anything that's wrong. If the ledger has more pages, press **Add another page** and read the next one; its rows are added below the first page's. Mark each row reviewed, then download one CSV for all the pages.
+4. Fix anything that's wrong. If the ledger has more pages, press **Add another page** and read the next one; its rows are added below the first page's. Mark each row reviewed (or press **Mark all reviewed** once you have checked every row), then download one CSV for all the pages.
 
 Builds are not signed yet. On a Mac, the first time you open the app, right-click it and choose **Open** (on recent macOS, then allow it under **System Settings, Privacy & Security**). On Windows, choose **More info**, then **Run anyway**.
 
@@ -83,7 +83,7 @@ If you start the app or tests from inside another Electron app (some editors and
 
 - One JPEG, PNG, or WebP photo at a time.
 - Extracts date, item or description, quantity, and amount.
-- Each row must be marked reviewed before the CSV download is enabled. A field is highlighted when the model says it couldn't read it, or when it wasn't sure of a digit in a date, quantity or amount. The model is sometimes confidently wrong, so check every row.
+- Each row must be marked reviewed before the CSV download is enabled. "Mark all reviewed" ticks every row at once, so use it only after reading through the page. A field is highlighted when the model says it couldn't read it, or when it wasn't sure of a digit in a date, quantity or amount. The model is sometimes confidently wrong, so check every row.
 - The model reads the total of each sale (the last money column), not the unit price, and copies the date from the row above where the page has a ditto mark. A `400/-` total is saved as `400`.
 - Small models sometimes get stuck writing the same rows again and again. When that happens the app stops reading, keeps the rows before the loop, and says so.
 - A sideways or upside-down photo reads very badly. Turn it with the rotate buttons before reading.
