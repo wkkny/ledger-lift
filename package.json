@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Turn a photo of a handwritten sales ledger into reviewed rows and a CSV, on your own computer.",
   "private": true,
+  "license": "MIT",
   "main": "./out/main/index.js",
   "scripts": {
     "postinstall": "install-electron",
