@@ -5,8 +5,11 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { FIELDS, canDownload, editField, isUncertain, markAllReviewed, needsAttention, reviewSummary, unreviewedCount, type Row } from '@/lib/review'
+import { FIELDS, canDownload, editField, isUncertain, markAllReviewed, needsAttention, reviewSummary, unreviewedCount, type FieldKey, type Row } from '@/lib/review'
 import { cn } from '@/lib/utils'
+
+/** Narrowest each column may get, so a long date such as 03/11/2025 is never cut off. */
+const MIN_WIDTH: Record<FieldKey, string> = { date: 'min-w-32', item: 'min-w-36', quantity: 'min-w-20', amount: 'min-w-20' }
 
 type Props = {
   rows: Row[]
@@ -60,6 +63,7 @@ export function Results({ rows, onRows, reading, saving, notice, onSave, onAddPa
                         aria-label={`${label}, row ${index + 1}`}
                         autoComplete="off"
                         className={cn(
+                          MIN_WIDTH[key],
                           'h-8 border-transparent bg-transparent shadow-none dark:bg-transparent',
                           isUncertain(row, key) && 'uncertain border-amber-500/70 bg-amber-100/50 dark:border-amber-500/50 dark:bg-amber-400/10'
                         )}
@@ -98,12 +102,14 @@ export function Results({ rows, onRows, reading, saving, notice, onSave, onAddPa
 
         <div className="border-border/70 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
           <span className="text-muted-foreground text-sm">{reviewSummary(remaining, reading)}</span>
-          <Button variant="outline" className="review-all-button" disabled={reading || remaining === 0} onClick={() => onRows(markAllReviewed(rows))}>
-            <CheckCheck aria-hidden="true" />Mark all reviewed
-          </Button>
-          <Button className="download-button transition-[background-color,transform,opacity] duration-200" disabled={!canDownload(rows, reading) || saving} onClick={onSave}>
-            <Download aria-hidden="true" />{saving ? 'Saving…' : 'Download CSV'}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" className="review-all-button" disabled={reading || remaining === 0} onClick={() => onRows(markAllReviewed(rows))}>
+              <CheckCheck aria-hidden="true" />Mark all reviewed
+            </Button>
+            <Button className="download-button transition-[background-color,transform,opacity] duration-200" disabled={!canDownload(rows, reading) || saving} onClick={onSave}>
+              <Download aria-hidden="true" />{saving ? 'Saving…' : 'Download CSV'}
+            </Button>
+          </div>
           {notice && <p className="notice text-muted-foreground w-full text-xs [overflow-wrap:anywhere]" role="status" aria-live="polite">{notice}</p>}
         </div>
       </section>
