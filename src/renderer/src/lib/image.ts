@@ -7,6 +7,14 @@ export function fitWithin(width: number, height: number, maxEdge: number): { wid
   return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
 }
 
+/** The size of a photo after `turns` quarter turns: a sideways page swaps its width and height. */
+export function turnedSize(width: number, height: number, turns: number): { width: number; height: number } {
+  return turns % 2 === 0 ? { width, height } : { width: height, height: width };
+}
+
+/** Keeps a turn count within 0 to 3 quarter turns clockwise, however many times the owner turned left or right. */
+export const wrapTurns = (turns: number) => ((turns % 4) + 4) % 4;
+
 function toBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -16,11 +24,16 @@ function toBase64(blob: Blob): Promise<string> {
   });
 }
 
-/** Shrinks the photo (respecting the phone's rotation) and returns it as base64 JPEG. */
-export async function prepareImage(file: File): Promise<string> {
+/**
+ * Shrinks the photo (respecting the phone's rotation), turns it `turns` quarter turns clockwise if the owner
+ * said the page is sideways, and returns it as base64 JPEG.
+ */
+export async function prepareImage(file: File, turns = 0): Promise<string> {
+  const quarter = wrapTurns(turns);
   const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
-  const size = fitWithin(bitmap.width, bitmap.height, MAX_IMAGE_EDGE);
-  if (size.width === bitmap.width && size.height === bitmap.height && file.type === 'image/jpeg') {
+  const turned = turnedSize(bitmap.width, bitmap.height, quarter);
+  const size = fitWithin(turned.width, turned.height, MAX_IMAGE_EDGE);
+  if (quarter === 0 && size.width === bitmap.width && size.height === bitmap.height && file.type === 'image/jpeg') {
     bitmap.close();
     return toBase64(file);
   }
@@ -31,7 +44,11 @@ export async function prepareImage(file: File): Promise<string> {
   if (!context) throw new Error('Could not prepare that image.');
   context.fillStyle = '#fff';
   context.fillRect(0, 0, size.width, size.height);
-  context.drawImage(bitmap, 0, 0, size.width, size.height);
+  // Draw the photo at its own (unturned) size around the middle of the canvas, turned.
+  const drawn = turnedSize(size.width, size.height, quarter);
+  context.translate(size.width / 2, size.height / 2);
+  context.rotate((quarter * Math.PI) / 2);
+  context.drawImage(bitmap, -drawn.width / 2, -drawn.height / 2, drawn.width, drawn.height);
   bitmap.close();
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
   if (!blob) throw new Error('Could not prepare that image.');

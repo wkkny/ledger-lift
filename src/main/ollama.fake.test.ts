@@ -2,7 +2,7 @@
 // without a model.
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Entry } from '../shared/types'
 import { extract, pull, status } from './ollama'
 
@@ -55,7 +55,7 @@ describe('extract', () => {
       seen.push(entry)
       if (seen.length === 1) releaseRest()
     })
-    expect(outcome).toEqual({ count: 2, cancelled: false })
+    expect(outcome).toEqual({ count: 2, cancelled: false, repeating: false })
     expect(seen.map((entry) => entry.item)).toEqual(['Rice', 'Salt'])
     expect(lastChatBody.options.num_ctx).toBeGreaterThan(4096)
     expect(lastChatBody.messages[1].images).toEqual(['AAAA'])
@@ -69,7 +69,25 @@ describe('extract', () => {
     }
     const controller = new AbortController()
     const outcome = await extract('m', 'AAAA', controller.signal, () => controller.abort())
-    expect(outcome).toEqual({ count: 1, cancelled: true })
+    expect(outcome).toEqual({ count: 1, cancelled: true, repeating: false })
+  })
+
+  it('stops a model that loops, keeps the first rows once, and closes the connection', async () => {
+    let clientLeft = false
+    handler = async (_request, response) => {
+      response.on('close', () => (clientLeft = true))
+      response.write(chatLine(`{"entries": [${row('Rice')},${row('Salt')}`))
+      for (let i = 0; i < 200 && !clientLeft; i++) {
+        response.write(chatLine(`,${row(i % 2 ? 'Salt' : 'Rice')}`)) // never ends by itself
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      }
+      response.end()
+    }
+    const seen: Entry[] = []
+    const outcome = await extract('m', 'AAAA', new AbortController().signal, (entry) => seen.push(entry))
+    expect(outcome).toEqual({ count: 2, cancelled: false, repeating: true })
+    expect(seen.map((entry) => entry.item)).toEqual(['Rice', 'Salt'])
+    await vi.waitFor(() => expect(clientLeft).toBe(true))
   })
 
   it("explains Ollama's own error, such as an oversized image", async () => {

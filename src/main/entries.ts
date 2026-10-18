@@ -19,6 +19,9 @@ function fieldText(value: unknown): string {
   return [...text].slice(0, MAX_FIELD_CHARS).join('')
 }
 
+/** Shopkeepers write a whole-number total as `400/-` or `400/`. The ending is not part of the number. */
+const stripTotalMark = (amount: string) => amount.replace(/(\d)\s*\/\s*[-=]?\s*$/, '$1')
+
 /** Cleans one model-produced object. Returns null if it is not an object. */
 export function cleanEntry(value: unknown): Entry | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
@@ -28,7 +31,7 @@ export function cleanEntry(value: unknown): Entry | null {
     date: fieldText(object.date),
     item: fieldText(object.item),
     quantity: fieldText(object.quantity),
-    amount: fieldText(object.amount),
+    amount: stripTotalMark(fieldText(object.amount)),
     uncertainFields: FIELDS.filter((field) => named.includes(field))
   }
 }

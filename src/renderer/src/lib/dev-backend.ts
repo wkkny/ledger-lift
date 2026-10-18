@@ -62,12 +62,12 @@ export function installDevBackend(): void {
       if (scenario === 'empty') throw new Error('No sales rows found. Try a closer, brighter photo.')
       let count = 0
       for (const row of ROWS) {
-        if (cancelled) return { count, cancelled: true }
+        if (cancelled) return { count, cancelled: true, repeating: false }
         onEntry(row)
         count += 1
         await sleep(rowDelay)
       }
-      return { count, cancelled: false }
+      return { count, cancelled: false, repeating: false }
     },
     async cancelExtract() {
       cancelled = true
