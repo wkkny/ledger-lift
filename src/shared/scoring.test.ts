@@ -23,6 +23,9 @@ describe('lenient', () => {
     expect(lenient('item', '  Rice   Bag ')).toBe('rice bag')
     expect(lenient('amount', '₹1,200.00')).toBe('1200')
     expect(lenient('amount', '$45')).toBe('45')
+    expect(lenient('quantity', '250 g')).toBe(lenient('quantity', '250g'))
+    expect(lenient('quantity', '2 kg')).not.toBe(lenient('quantity', '2 g'))
+    expect(lenient('item', 'Rice 5 kg')).toBe('rice 5 kg') // only quantities join number and unit
     expect(lenient('date', '1/2')).not.toBe(lenient('date', '01/02'))
   })
 })
