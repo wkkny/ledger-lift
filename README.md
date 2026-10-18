@@ -6,7 +6,7 @@ The photo is sent only to the local Ollama service on the same computer. Ledger 
 
 ## For the owner
 
-1. Open Ledger Lift. If Ollama isn't installed, the app says so and opens the [Ollama download](https://ollama.com/download) for you. Run its installer (no administrator password needed); the app notices when it finishes and carries on by itself.
+1. Open Ledger Lift. If Ollama isn't installed, the app says so, and its **Download Ollama** button opens the [Ollama download page](https://ollama.com/download). Run its installer (no administrator password needed); the app notices when it finishes and carries on by itself.
 2. Ledger Lift starts Ollama for you and offers a one-time download of the reading model (about 2 GB).
 3. Choose a photo of one ledger page and press **Read this page**. Rows appear as they are found.
 4. Fix anything that's wrong, mark each row reviewed, then download the CSV.
