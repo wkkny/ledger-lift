@@ -93,10 +93,40 @@ function parseLine(line: string): Record<string, unknown> {
   return object
 }
 
-/** The text the model added in one streamed chat line, or throws the error Ollama reported instead. */
-export function parseChatLine(line: string): string {
-  const message = parseLine(line).message as { content?: unknown } | undefined
-  return typeof message?.content === 'string' ? message.content : ''
+/** A piece of the model's reply, with how sure the model was of it (0 to 1; 1 when Ollama didn't say). */
+export type ReplyPiece = { text: string; confidence: number }
+
+/**
+ * Turns streamed chat lines into pieces of the model's reply, or throws the error Ollama reported instead.
+ * When Ollama reports token probabilities, the text is rebuilt from the tokens themselves: the `content` it
+ * streams holds back whitespace and can't be matched to tokens, but each token's bytes can.
+ */
+export class ChatReply {
+  private decoder = new TextDecoder()
+
+  push(line: string): ReplyPiece[] {
+    const object = parseLine(line)
+    const message = object.message as { content?: unknown; thinking?: unknown } | undefined
+    // A model that reasons first reports probabilities for those words too; they are not part of the answer.
+    if (typeof message?.thinking === 'string' && message.thinking) return []
+    const tokens = tokenList(object.logprobs)
+    if (tokens) {
+      return tokens.flatMap(({ bytes, logprob }) => {
+        const text = this.decoder.decode(Uint8Array.from(bytes), { stream: true })
+        return text ? [{ text, confidence: Math.exp(logprob) }] : []
+      })
+    }
+    return typeof message?.content === 'string' && message.content ? [{ text: message.content, confidence: 1 }] : []
+  }
+}
+
+function tokenList(value: unknown): { bytes: number[]; logprob: number }[] | null {
+  if (!Array.isArray(value) || value.length === 0) return null
+  const tokens = value.map((item) => item as { bytes?: unknown; logprob?: unknown } | null)
+  const usable = tokens.every(
+    (token) => Array.isArray(token?.bytes) && token.bytes.every((byte) => Number.isInteger(byte)) && typeof token.logprob === 'number'
+  )
+  return usable ? (tokens as { bytes: number[]; logprob: number }[]) : null
 }
 
 export function parsePullLine(line: string): PullProgress {
@@ -114,6 +144,7 @@ export function chatRequest(model: string, imageBase64: string) {
     model,
     stream: true,
     format: 'json',
+    logprobs: true, // lets a digit the model was unsure of be marked for review
     keep_alive: KEEP_ALIVE,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
@@ -244,10 +275,13 @@ export async function extract(
     })
     if (!response.ok) throw await apiError(response)
     const entries = new EntryStream()
+    const reply = new ChatReply()
     for await (const line of lines(response, 'The connection to Ollama was interrupted.')) {
-      for (const entry of entries.push(parseChatLine(line))) {
-        count += 1
-        onEntry(entry)
+      for (const piece of reply.push(line)) {
+        for (const entry of entries.push(piece.text, piece.confidence)) {
+          count += 1
+          onEntry(entry)
+        }
       }
     }
     return { count, cancelled: false }

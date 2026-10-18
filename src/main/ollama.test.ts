@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { baseUrl, chatRequest, DEFAULT_MODEL, KEEP_ALIVE, LineBuffer, modelInstalled, NUM_CTX, parseChatLine, parsePullLine } from './ollama'
+import { baseUrl, chatRequest, DEFAULT_MODEL, KEEP_ALIVE, LineBuffer, modelInstalled, NUM_CTX, ChatReply, parsePullLine } from './ollama'
 
 const bytes = (text: string) => new TextEncoder().encode(text)
 
@@ -9,6 +9,7 @@ describe('chatRequest', () => {
     expect(request.stream).toBe(true)
     expect(request.format).toBe('json')
     expect(request.keep_alive).toBe(KEEP_ALIVE)
+    expect(request.logprobs).toBe(true)
     // A ledger photo plus its answer overflows Ollama's default 4096-token context.
     expect(request.options.num_ctx).toBeGreaterThan(4096)
     expect(NUM_CTX).toBe(request.options.num_ctx)
@@ -38,17 +39,46 @@ describe('LineBuffer', () => {
   })
 })
 
-describe('parseChatLine', () => {
+describe('ChatReply', () => {
+  const token = (text: string, probability = 1) => ({ token: text, logprob: Math.log(probability), bytes: [...Buffer.from(text)] })
+  const line = (content: string, logprobs?: unknown[], thinking?: string) =>
+    JSON.stringify({ message: { content, ...(thinking ? { thinking } : {}) }, done: false, ...(logprobs ? { logprobs } : {}) })
+
   it('returns the text added, or nothing for thinking-only lines', () => {
-    expect(parseChatLine('{"message":{"content":"hi"},"done":false}')).toBe('hi')
-    expect(parseChatLine('{"message":{"thinking":"hm"},"done":false}')).toBe('')
+    expect(new ChatReply().push(line('hi'))).toEqual([{ text: 'hi', confidence: 1 }])
+    expect(new ChatReply().push(line('', undefined, 'hm'))).toEqual([])
+    expect(new ChatReply().push(line(''))).toEqual([])
+  })
+
+  it('rebuilds the text from the tokens, with each token\'s probability', () => {
+    // `content` leaves out the space that the token carries.
+    const pieces = new ChatReply().push(line('', [token(' "', 1), token('9', 0.5)]))
+    expect(pieces.map((piece) => piece.text)).toEqual([' "', '9'])
+    expect(pieces[1].confidence).toBeCloseTo(0.5)
+  })
+
+  it('keeps a character that is split across tokens whole', () => {
+    const bytes = [...Buffer.from('é')]
+    const halves = [bytes.slice(0, 1), bytes.slice(1)].map((half) => ({ token: '\uFFFD', logprob: 0, bytes: half }))
+    const reply = new ChatReply()
+    expect(reply.push(line('', [halves[0]]))).toEqual([])
+    expect(reply.push(line('', [halves[1]])).map((piece) => piece.text)).toEqual(['é'])
+  })
+
+  it('ignores the probabilities of a model reasoning before its answer', () => {
+    expect(new ChatReply().push(line('', [token('hmm')], 'hmm'))).toEqual([])
+  })
+
+  it('uses the content when the tokens are missing or malformed', () => {
+    expect(new ChatReply().push(line('hi', []))).toEqual([{ text: 'hi', confidence: 1 }])
+    expect(new ChatReply().push(line('hi', [{ token: 'hi', logprob: 'high' }]))).toEqual([{ text: 'hi', confidence: 1 }])
   })
 
   it('throws the error Ollama reported', () => {
-    expect(() => parseChatLine('{"error":"request exceeds the available context size"}')).toThrow(
+    expect(() => new ChatReply().push('{"error":"request exceeds the available context size"}')).toThrow(
       'request exceeds the available context size'
     )
-    expect(() => parseChatLine('not json')).toThrow(/Unreadable reply/)
+    expect(() => new ChatReply().push('not json')).toThrow(/Unreadable reply/)
   })
 })
 

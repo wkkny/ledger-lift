@@ -6,8 +6,10 @@ export type FakeOptions = {
   /** Models reported as installed; `pull` adds the wanted one. */
   models?: string[]
   /** Rows the "model" writes, one streamed piece at a time. */
-  rows?: { item: string; quantity: string; amount: string; uncertain?: string[] }[]
+  rows?: { item: string; quantity: string; amount: string; uncertain?: string[]; unsureAmount?: boolean }[]
   rowDelayMs?: number
+  /** Report token probabilities as newer Ollama does; a row's `unsureAmount` makes its amount a low-probability guess. */
+  reportConfidence?: boolean
   /** Reply to /api/chat with this error instead of rows. */
   chatError?: { status: number; message: string }
   /** After the first row, keep the reply open until the client disconnects. */
@@ -26,7 +28,12 @@ const json = (response: ServerResponse, status: number, body: unknown) => {
   response.end(JSON.stringify(body))
 }
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-const piece = (content: string) => JSON.stringify({ message: { role: 'assistant', content }, done: false }) + '\n'
+const piece = (content: string, probability?: number) =>
+  JSON.stringify({
+    message: { role: 'assistant', content },
+    done: false,
+    ...(probability === undefined ? {} : { logprobs: [{ token: content, logprob: Math.log(probability), bytes: [...Buffer.from(content)] }] })
+  }) + '\n'
 
 export async function startFakeOllama(options: FakeOptions = {}): Promise<FakeOllama> {
   const models = [...(options.models ?? ['qwen3-vl:2b-instruct'])]
@@ -42,8 +49,13 @@ export async function startFakeOllama(options: FakeOptions = {}): Promise<FakeOl
     response.write(piece('{"entries": ['))
     for (const [index, row] of rows.entries()) {
       const uncertain = JSON.stringify(row.uncertain ?? [])
-      const object = `{"date": "5/10", "item": "${row.item}", "quantity": "${row.quantity}", "amount": "${row.amount}", "uncertain_fields": ${uncertain}}`
-      response.write(piece(index > 0 ? `,${object}` : object))
+      const p = options.reportConfidence ? 0.999 : undefined
+      const object = [
+        [`${index > 0 ? ',' : ''}{"date": "5/10", "item": "${row.item}", "quantity": "${row.quantity}", "amount": "`, p],
+        [row.amount, options.reportConfidence && row.unsureAmount ? 0.5 : p],
+        [`", "uncertain_fields": ${uncertain}}`, p]
+      ] as const
+      for (const [text, probability] of object) if (text) response.write(piece(text, probability))
       if (options.hangAfterFirstRow && index === 0) {
         while (open) await sleep(50)
         return

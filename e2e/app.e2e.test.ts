@@ -95,6 +95,27 @@ describe('reading a page', () => {
     expect(body.messages[1].images[0].length).toBeGreaterThan(20)
   })
 
+  it("highlights an amount the model was unsure of even though the model did not say so", async () => {
+    const { page } = await launch({
+      reportConfidence: true,
+      rows: [
+        { item: 'Rice', quantity: '1', amount: '1450' },
+        { item: 'Eggs', quantity: '12', amount: '89', unsureAmount: true },
+        { item: 'Salt', quantity: '3', amount: '180' }
+      ]
+    })
+    await waitUntilReady(page)
+    await page.locator('input[type=file]').setInputFiles(photo)
+    await readButton(page).click()
+    await page.waitForFunction(() => document.querySelectorAll('tr.entry-row').length === 3)
+    expect(await page.locator('tr.needs-review').count()).toBe(1)
+    const eggs = rows(page).nth(1)
+    expect(await eggs.locator('input').nth(1).inputValue()).toBe('Eggs')
+    expect(await eggs.locator('input.uncertain').count()).toBe(1)
+    expect(await eggs.locator('input').nth(3).getAttribute('class')).toContain('uncertain')
+    expect(fake.chatBodies[0].logprobs).toBe(true)
+  })
+
   it('stops on request and keeps the rows already read', async () => {
     const { page } = await launch({ rows: [{ item: 'Rice 5kg', quantity: '1', amount: '1450' }, { item: 'Salt', quantity: '1', amount: '5' }], hangAfterFirstRow: true })
     await waitUntilReady(page)
