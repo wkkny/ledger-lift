@@ -8,7 +8,7 @@ The photo is sent only to the local Ollama service on the same computer. Ledger 
 
 1. Open Ledger Lift. If Ollama isn't installed, the app says so, and its **Download Ollama** button opens the [Ollama download page](https://ollama.com/download). Run its installer (no administrator password needed); the app notices when it finishes and carries on by itself.
 2. Ledger Lift starts Ollama for you and offers a one-time download of the reading model (about 2 GB).
-3. Choose a photo of one ledger page and press **Read this page**. Rows appear as they are found.
+3. Choose a photo of one ledger page. If the page is sideways in the preview, turn it with the rotate buttons. Then press **Read this page**. Rows appear as they are found.
 4. Fix anything that's wrong, mark each row reviewed, then download the CSV.
 
 Builds are not signed yet. On a Mac, the first time you open the app, right-click it and choose **Open** (on recent macOS, then allow it under **System Settings, Privacy & Security**). On Windows, choose **More info**, then **Run anyway**.
@@ -83,10 +83,13 @@ If you start the app or tests from inside another Electron app (some editors and
 
 - One JPEG, PNG, or WebP photo at a time.
 - Extracts date, item or description, quantity, and amount.
-- Each row must be marked reviewed before the CSV download is enabled; unclear fields are highlighted.
+- Each row must be marked reviewed before the CSV download is enabled. A field is highlighted when the model says it couldn't read it, or when it wasn't sure of a digit in a date, quantity or amount. The model is sometimes confidently wrong, so check every row.
+- The model reads the total of each sale (the last money column), not the unit price, and copies the date from the row above where the page has a ditto mark. A `400/-` total is saved as `400`.
+- Small models sometimes get stuck writing the same rows again and again. When that happens the app stops reading, keeps the rows before the loop, and says so.
+- A sideways or upside-down photo reads very badly. Turn it with the rotate buttons before reading.
 - No saved history; the photo is processed in memory and discarded after reading.
 - Timing was measured on an Apple M4: about 21 seconds for a 15-row page, with the first row after about 10 seconds. It is untested on computers without a GPU.
-- Recognition quality on real ledger handwriting still needs to be checked with a first user. Only a font-rendered test page has been read so far.
+- Recognition quality on real ledger handwriting still needs to be checked with a first user. Two handwritten pages have been scored (about 9 and 16 rows): amounts and quantities were mostly right, dates and multi-word items less so.
 - The installer is about 128 MB.
 
 ## Why open source

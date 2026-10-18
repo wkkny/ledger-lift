@@ -40,6 +40,18 @@ async function launch(options: FakeOptions): Promise<{ page: Page; savePath: str
   return { page, savePath }
 }
 
+/** The width and height of a base64 JPEG, read from its start-of-frame marker. */
+function jpegSize(base64: string): { width: number; height: number } {
+  const bytes = Buffer.from(base64, 'base64')
+  for (let i = 2; i + 9 < bytes.length; ) {
+    if (bytes[i] !== 0xff) throw new Error('Not a JPEG.')
+    const marker = bytes[i + 1]
+    if (marker >= 0xc0 && marker <= 0xc2) return { height: bytes.readUInt16BE(i + 5), width: bytes.readUInt16BE(i + 7) }
+    i += 2 + bytes.readUInt16BE(i + 2)
+  }
+  throw new Error('No size found in the JPEG.')
+}
+
 const readButton = (page: Page) => page.locator('.primary-button')
 const rows = (page: Page) => page.locator('tr.entry-row')
 const waitUntilReady = (page: Page, timeout = 15_000) =>
@@ -114,6 +126,37 @@ describe('reading a page', () => {
     expect(await eggs.locator('input.uncertain').count()).toBe(1)
     expect(await eggs.locator('input').nth(3).getAttribute('class')).toContain('uncertain')
     expect(fake.chatBodies[0].logprobs).toBe(true)
+  })
+
+  it('stops a model that repeats itself, keeps the rows before the loop, and says why', async () => {
+    const rice = { item: 'Rice', quantity: '1', amount: '1450' }
+    const salt = { item: 'Salt', quantity: '3', amount: '180' }
+    const { page } = await launch({ rows: Array.from({ length: 40 }, (_, i) => (i % 2 ? salt : rice)), rowDelayMs: 20 })
+    await waitUntilReady(page)
+    await page.locator('input[type=file]').setInputFiles(photo)
+    await readButton(page).click()
+    await page.getByRole('button', { name: /Read this page/ }).waitFor()
+    expect(await rows(page).count()).toBe(2)
+    expect(await page.locator('.message').textContent()).toMatch(/started repeating itself.*after 2 rows/)
+  })
+
+  it('reads the photo turned when the owner says the page is sideways', async () => {
+    const { page } = await launch({})
+    await waitUntilReady(page)
+    await page.locator('input[type=file]').setInputFiles(photo) // 64 wide, 48 tall
+    await readButton(page).click()
+    await page.getByRole('button', { name: /Read this page/ }).waitFor()
+    expect(jpegSize(fake.chatBodies[0].messages[1].images[0])).toEqual({ width: 64, height: 48 })
+
+    await page.getByRole('button', { name: 'Turn the photo right', exact: true }).click()
+    await readButton(page).click()
+    await page.getByRole('button', { name: /Read this page/ }).waitFor()
+    expect(jpegSize(fake.chatBodies[1].messages[1].images[0])).toEqual({ width: 48, height: 64 })
+
+    await page.getByRole('button', { name: 'Turn the photo left', exact: true }).click() // back to upright
+    await readButton(page).click()
+    await page.getByRole('button', { name: /Read this page/ }).waitFor()
+    expect(jpegSize(fake.chatBodies[2].messages[1].images[0])).toEqual({ width: 64, height: 48 })
   })
 
   it('stops on request and keeps the rows already read', async () => {

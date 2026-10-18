@@ -1,10 +1,13 @@
-import { Upload, X } from 'lucide-react'
-import { useEffect, useState, type DragEvent } from 'react'
+import { RotateCcw, RotateCw, Upload, X } from 'lucide-react'
+import { useEffect, useState, type DragEvent, type MouseEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 type Props = {
   file: File | null
+  /** Quarter turns clockwise to show the photo turned, and the owner's request to turn it a quarter (+1 right, -1 left). */
+  turns: number
+  onTurn: (step: number) => void
   onChoose: (file: File) => void
   onClear: () => void
   onReject: (message: string) => void
@@ -13,7 +16,7 @@ type Props = {
 const ALLOWED = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_BYTES = 50 * 1024 * 1024
 
-export function Uploader({ file, onChoose, onClear, onReject }: Props) {
+export function Uploader({ file, turns, onTurn, onChoose, onClear, onReject }: Props) {
   const [dragging, setDragging] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
@@ -29,6 +32,13 @@ export function Uploader({ file, onChoose, onClear, onReject }: Props) {
     if (!ALLOWED.includes(candidate.type)) return onReject('Choose a JPEG, PNG, or WebP image.')
     if (candidate.size > MAX_BYTES) return onReject('This image is over 50 MB. Choose a smaller photo.')
     onChoose(candidate)
+  }
+
+  /** The buttons sit inside the file picker's label, so a click must not also open the picker. */
+  function stay(event: MouseEvent, action: () => void) {
+    event.preventDefault()
+    event.stopPropagation()
+    action()
   }
 
   const over = (event: DragEvent) => {
@@ -75,22 +85,27 @@ export function Uploader({ file, onChoose, onClear, onReject }: Props) {
         <span className="text-muted-foreground text-xs">JPG, PNG or WebP · one page at a time</span>
         {file && previewUrl && (
           <div className="preview-wrap bg-card absolute inset-0 flex items-center justify-center gap-4 p-3">
-            <img src={previewUrl} alt="Selected ledger page" width={240} height={160} className="ring-border/80 max-h-full max-w-[60%] rounded-md object-contain ring-1" />
+            <img
+              src={previewUrl}
+              alt="Selected ledger page"
+              width={240}
+              height={160}
+              className="ring-border/80 max-h-full max-w-[60%] rounded-md object-contain ring-1 transition-transform duration-200"
+              // On its side the preview's width must fit the box's height.
+              style={{ transform: `rotate(${turns * 90}deg)`, ...(turns % 2 === 1 ? { maxHeight: 'none', maxWidth: '8.5rem' } : {}) }}
+            />
             <span className="text-muted-foreground max-w-32 truncate text-xs" title={file.name}>{file.name}</span>
-            <Button
-              type="button"
-              variant="secondary"
-              size="icon-sm"
-              className="absolute top-2 right-2"
-              aria-label="Remove selected image"
-              onClick={(event) => {
-                event.preventDefault()
-                event.stopPropagation()
-                onClear()
-              }}
-            >
-              <X aria-hidden="true" />
-            </Button>
+            <div className="absolute top-2 right-2 flex gap-1.5">
+              <Button type="button" variant="secondary" size="icon-sm" className="rotate-left" aria-label="Turn the photo left" title="Turn the photo left" onClick={(event) => stay(event, () => onTurn(-1))}>
+                <RotateCcw aria-hidden="true" />
+              </Button>
+              <Button type="button" variant="secondary" size="icon-sm" className="rotate-right" aria-label="Turn the photo right" title="Turn the photo right" onClick={(event) => stay(event, () => onTurn(1))}>
+                <RotateCw aria-hidden="true" />
+              </Button>
+              <Button type="button" variant="secondary" size="icon-sm" aria-label="Remove selected image" onClick={(event) => stay(event, onClear)}>
+                <X aria-hidden="true" />
+              </Button>
+            </div>
           </div>
         )}
       </label>

@@ -20,7 +20,8 @@ export type PullProgress = {
   total: number | null;
 };
 
-export type ExtractOutcome = { count: number; cancelled: boolean };
+/** `repeating`: the model started copying rows over and over, so reading was stopped early. */
+export type ExtractOutcome = { count: number; cancelled: boolean; repeating: boolean };
 
 export type SetupPhase = 'checking' | 'starting' | 'missing-ollama' | 'need-model' | 'downloading' | 'error' | 'ready';
 

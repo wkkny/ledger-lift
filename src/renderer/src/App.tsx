@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Label } from '@/components/ui/label'
 import { cancelExtract, defaultModel, errorText, extractEntries, getStatus, saveCsv } from '@/lib/api'
-import { prepareImage } from '@/lib/image'
+import { prepareImage, wrapTurns } from '@/lib/image'
 import { toCsvEntries, toRow, type Row } from '@/lib/review'
 import { cn } from '@/lib/utils'
 
@@ -18,6 +18,8 @@ export default function App() {
   const [model, setModel] = useState('')
   const [phase, setPhase] = useState<SetupPhase>('checking')
   const [file, setFile] = useState<File | null>(null)
+  /** Quarter turns clockwise the owner gave the photo, for a page photographed sideways. */
+  const [turns, setTurns] = useState(0)
   const [rows, setRows] = useState<Row[]>([])
   const [showResults, setShowResults] = useState(false)
   const [reading, setReading] = useState(false)
@@ -73,12 +75,14 @@ export default function App() {
     document.querySelector('#results')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     let count = 0
     try {
-      const image = await prepareImage(file)
+      const image = await prepareImage(file, turns)
       const outcome = await extractEntries(image, model.trim(), (entry) => {
         count++
         setRows((current) => [...current, toRow(entry)])
       })
-      if (outcome.cancelled) setMessage(`Stopped. ${outcome.count} ${outcome.count === 1 ? 'row was' : 'rows were'} read before you stopped.`)
+      const rowsRead = `${outcome.count} ${outcome.count === 1 ? 'row' : 'rows'}`
+      if (outcome.cancelled) setMessage(`Stopped. ${rowsRead} ${outcome.count === 1 ? 'was' : 'were'} read before you stopped.`)
+      else if (outcome.repeating) setMessage(`The model started repeating itself, so reading stopped after ${rowsRead}. Check the rest of the page by hand. If the photo is sideways, turn it with the rotate buttons and read again.`)
     } catch (error) {
       setMessage(errorText(error))
       if (count === 0) setShowResults(false)
@@ -105,6 +109,7 @@ export default function App() {
     setRows([])
     setShowResults(false)
     setFile(null)
+    setTurns(0)
     setMessage('')
     setNotice('')
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -131,11 +136,17 @@ export default function App() {
 
           <Uploader
             file={file}
+            turns={turns}
+            onTurn={(step) => setTurns((current) => wrapTurns(current + step))}
             onChoose={(chosen) => {
               setFile(chosen)
+              setTurns(0)
               setMessage('')
             }}
-            onClear={() => setFile(null)}
+            onClear={() => {
+              setFile(null)
+              setTurns(0)
+            }}
             onReject={setMessage}
           />
 

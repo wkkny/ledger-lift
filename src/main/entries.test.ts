@@ -117,6 +117,16 @@ describe('cleanEntry', () => {
     expect(cleaned?.amount).toBe('')
   })
 
+  it('drops the "/-" a shopkeeper writes after a whole-number total', () => {
+    const amount = (value: string) => cleanEntry({ amount: value })?.amount
+    expect(amount('400/-')).toBe('400')
+    expect(amount('50 /-')).toBe('50')
+    expect(amount('120/')).toBe('120')
+    expect(amount('1,250/=')).toBe('1,250')
+    expect(amount('400.00')).toBe('400.00') // other amounts are left exactly as written
+    expect(amount('1/2 kg')).toBe('1/2 kg')
+  })
+
   it('drops unknown uncertain fields and cuts very long values', () => {
     const cleaned = cleanEntry({ item: 'x'.repeat(900), uncertain_fields: ['item', 'colour', 7] })
     expect(cleaned?.uncertainFields).toEqual(['item'])

@@ -6,6 +6,7 @@ import { delimiter, join } from 'node:path'
 import { Agent, fetch, type Response } from 'undici'
 import type { Entry, ExtractOutcome, PullProgress, Status } from '../shared/types'
 import { EntryStream } from './entries'
+import { RepeatGuard } from './repeats'
 
 /** The plain `-instruct` tag. The default `qwen3-vl:2b` tag reasons for 30-100 s before answering. */
 export const DEFAULT_MODEL = 'qwen3-vl:2b-instruct'
@@ -20,6 +21,9 @@ Return only a JSON object with an \`entries\` array. Each entry must have \`date
 \`quantity\`, \`amount\`, and \`uncertain_fields\`. Use strings for values exactly as written;
 use an empty string when a value is missing or cannot be read. \`uncertain_fields\` is an
 array containing any of date, item, quantity, amount that you could not read confidently.
+\`amount\` is what the sale came to: when the page has both a unit price and a total, use the
+total, not the unit price. When a date cell holds a ditto mark (a quote mark or two commas)
+or is empty, use the date from the row above. Skip days marked Nil or left blank.
 Do not invent values, calculate totals, normalize dates, or merge separate rows. Ignore
 headers, totals, and notes that are not individual sales. Keep entries in page order.`
 
@@ -268,25 +272,44 @@ export async function extract(
   if (!name || name.length > 120) throw new Error('Enter a valid Ollama model name.')
 
   let count = 0
+  let repeating = false
+  // Aborted from here when the model starts looping; `signal` is the owner pressing Stop.
+  const stopLoop = new AbortController()
+  const emit = (entries: Entry[]) => {
+    for (const entry of entries) {
+      count += 1
+      onEntry(entry)
+    }
+  }
   try {
-    const response = await request('/api/chat', { body: chatRequest(name, imageBase64), signal }).catch((error) => {
-      if ((error as Error).name === 'AbortError') throw error
-      throw unreachable(error)
-    })
+    const response = await request('/api/chat', { body: chatRequest(name, imageBase64), signal: AbortSignal.any([signal, stopLoop.signal]) }).catch(
+      (error) => {
+        if ((error as Error).name === 'AbortError') throw error
+        throw unreachable(error)
+      }
+    )
     if (!response.ok) throw await apiError(response)
     const entries = new EntryStream()
     const reply = new ChatReply()
-    for await (const line of lines(response, 'The connection to Ollama was interrupted.')) {
+    const guard = new RepeatGuard()
+    reading: for await (const line of lines(response, 'The connection to Ollama was interrupted.')) {
       for (const piece of reply.push(line)) {
         for (const entry of entries.push(piece.text, piece.confidence)) {
-          count += 1
-          onEntry(entry)
+          const { release, looping } = guard.push(entry)
+          emit(release)
+          if (looping) {
+            repeating = true
+            stopLoop.abort()
+            break reading
+          }
         }
       }
     }
-    return { count, cancelled: false }
+    emit(guard.finish())
+    return { count, cancelled: false, repeating }
   } catch (error) {
-    if ((error as Error).name === 'AbortError' || signal.aborted) return { count, cancelled: true }
+    if (repeating && !signal.aborted) return { count, cancelled: false, repeating }
+    if ((error as Error).name === 'AbortError' || signal.aborted) return { count, cancelled: true, repeating: false }
     throw error
   }
 }
