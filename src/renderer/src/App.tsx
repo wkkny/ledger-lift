@@ -130,7 +130,7 @@ export default function App() {
       <a href="#main" className="skip-link">Skip to content</a>
 
       <header className="border-border/70 bg-card/80 sticky top-0 z-40 border-b backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-6xl items-center px-5 sm:px-6">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-center px-5 sm:px-6">
           <div className="flex items-center gap-2.5">
             <Logo className="size-7" />
             <span className="text-[0.95rem] font-semibold tracking-tight">Ledger Lift</span>
