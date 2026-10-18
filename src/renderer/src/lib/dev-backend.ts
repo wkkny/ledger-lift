@@ -1,6 +1,7 @@
 /** A fake app so the interface can be opened in a plain browser (`pnpm web`). Never bundled into builds.
  * Pick a starting screen with ?scenario=missing-ollama | need-model | empty | error (default: ready),
- * and slow the rows down with ?rowDelay=<milliseconds>. */
+ * slow the rows down with ?rowDelay=<milliseconds>, and set how long the pretend
+ * Ollama install takes with ?installTime=<milliseconds>. */
 import type { Entry, LedgerApi } from '@shared/types'
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -17,7 +18,7 @@ export function installDevBackend(): void {
   const params = new URLSearchParams(location.search)
   const scenario = params.get('scenario') ?? 'ready'
   const rowDelay = Number(params.get('rowDelay') ?? 700)
-  const installed = scenario !== 'missing-ollama'
+  let installed = scenario !== 'missing-ollama'
   let running = scenario !== 'missing-ollama'
   let modelInstalled = scenario !== 'need-model'
   let cancelled = false
@@ -77,6 +78,11 @@ export function installDevBackend(): void {
     },
     async openDownloadPage() {
       track('openDownloadPage')
+      // Pretend the owner runs the installer, which finishes a few seconds later and starts Ollama.
+      setTimeout(() => {
+        installed = true
+        running = true
+      }, Number(params.get('installTime') ?? 5000))
     }
   }
   window.ledger = fake

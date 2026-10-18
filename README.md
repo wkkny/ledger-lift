@@ -6,8 +6,8 @@ The photo is sent only to the local Ollama service on the same computer. Ledger 
 
 ## For the owner
 
-1. Install [Ollama](https://ollama.com/download).
-2. Open Ledger Lift. It starts Ollama for you and offers a one-time download of the reading model (about 2 GB).
+1. Open Ledger Lift. If Ollama isn't installed, the app says so, and its **Download Ollama** button opens the [Ollama download page](https://ollama.com/download). Run its installer (no administrator password needed); the app notices when it finishes and carries on by itself.
+2. Ledger Lift starts Ollama for you and offers a one-time download of the reading model (about 2 GB).
 3. Choose a photo of one ledger page and press **Read this page**. Rows appear as they are found.
 4. Fix anything that's wrong, mark each row reviewed, then download the CSV.
 
@@ -66,7 +66,7 @@ To run the same end-to-end flow with the real model, which starts Ollama itself 
 LEDGER_TEST_IMAGE=/path/to/page.jpg LEDGER_TEST_ANSWERS=/path/to/page.csv pnpm test:e2e
 ```
 
-`pnpm web` opens the interface in a plain browser against a fake backend, so screens can be explored without Electron or Ollama. Add `?scenario=missing-ollama`, `need-model`, `empty` or `error` to the URL to see each state, and `?rowDelay=5000` to slow the rows down. The fake backend is development-only and is not part of builds.
+`pnpm web` opens the interface in a plain browser against a fake backend, so screens can be explored without Electron or Ollama. Add `?scenario=missing-ollama`, `need-model`, `empty` or `error` to the URL to see each state, and `?rowDelay=5000` to slow the rows down. On `missing-ollama`, pressing Download Ollama pretends to install it; `?installTime=<milliseconds>` sets how long that takes. The fake backend is development-only and is not part of builds.
 
 Keep real ledger photos in `samples/private/`; that directory is ignored by Git.
 
