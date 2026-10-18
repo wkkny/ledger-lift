@@ -10,8 +10,9 @@
     "verbatimModuleSyntax": true,
     "useDefineForClassFields": true,
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "types": ["vite/client", "svelte"],
-    "paths": { "@shared/*": ["./src/shared/*"], "$lib": ["./src/renderer/src/lib"], "$lib/*": ["./src/renderer/src/lib/*"] }
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+    "paths": { "@shared/*": ["./src/shared/*"], "@/*": ["./src/renderer/src/*"] }
   },
-  "include": ["src/renderer/src/**/*", "src/renderer/src/**/*.svelte", "src/shared/**/*"]
+  "include": ["src/renderer/src/**/*", "src/shared/**/*"]
 }

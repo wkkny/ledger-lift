@@ -19,26 +19,26 @@ describe('review', () => {
   });
 
   it('editing a value clears its doubt and requires the row to be reviewed again', () => {
-    const row = toRow(entry({ uncertainFields: ['amount', 'item'] }));
-    row.reviewed = true;
-    editField(row, 'amount', '1500');
-    expect(row.amount).toBe('1500');
-    expect(row.uncertainFields).toEqual(['item']);
-    expect(row.reviewed).toBe(false);
+    const row = { ...toRow(entry({ uncertainFields: ['amount', 'item'] })), reviewed: true };
+    const edited = editField(row, 'amount', '1500');
+    expect(edited.amount).toBe('1500');
+    expect(edited.uncertainFields).toEqual(['item']);
+    expect(edited.reviewed).toBe(false);
+    expect(row.amount).toBe('1450'); // the original row is untouched
   });
 
   it('allows the download only when reading has finished and every row is reviewed', () => {
     const rows = [toRow(entry()), toRow(entry())];
     expect(canDownload(rows, false)).toBe(false);
-    rows.forEach((row) => (row.reviewed = true));
-    expect(canDownload(rows, false)).toBe(true);
-    expect(canDownload(rows, true)).toBe(false);
+    const reviewed = rows.map((row) => ({ ...row, reviewed: true }));
+    expect(canDownload(reviewed, false)).toBe(true);
+    expect(canDownload(reviewed, true)).toBe(false);
     expect(canDownload([], false)).toBe(false);
   });
 
   it('counts and describes the rows still to review', () => {
     const rows = [toRow(entry()), toRow(entry()), toRow(entry())];
-    rows[0].reviewed = true;
+    rows[0] = { ...rows[0], reviewed: true };
     expect(unreviewedCount(rows)).toBe(2);
     expect(reviewSummary(2, false)).toBe('Review and mark 2 rows before downloading.');
     expect(reviewSummary(1, false)).toBe('Review and mark 1 row before downloading.');

@@ -179,8 +179,9 @@ describe('managing Ollama', () => {
     const up = () => fetch(`http://127.0.0.1:${port}/api/version`, { signal: AbortSignal.timeout(1000) }).then((r) => r.ok, () => false)
     app = await launchApp({ OLLAMA_HOST: `127.0.0.1:${port}` })
     const page = await app.firstWindow()
-    await page.waitForFunction(() => document.querySelector('#main')?.getAttribute('data-setup-phase') === 'starting') // the app has spawned it but it is not answering yet
-    expect(await up()).toBe(false)
+    // The app has spawned Ollama. Quit right away, before it has had time to settle; whether it
+    // is answering yet depends on the machine, so only the cleanup afterwards is asserted.
+    await page.waitForFunction(() => document.querySelector('#main')?.getAttribute('data-setup-phase') === 'starting')
     await app.close()
     app = undefined
     await new Promise((resolve) => setTimeout(resolve, 4000))

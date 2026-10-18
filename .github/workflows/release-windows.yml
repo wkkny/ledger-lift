@@ -1,0 +1,58 @@
+name: Windows release
+
+on:
+  push:
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.3.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+
+      - name: Tag matches package.json version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $version" >&2
+            exit 1
+          fi
+
+      - name: Build the installer
+        run: pnpm dist --win --x64
+
+      - name: Smoke-test the packaged app
+        shell: bash
+        env:
+          LEDGER_APP_PATH: ${{ github.workspace }}/dist/win-unpacked/Ledger Lift.exe
+        run: pnpm exec vitest run --config vitest.e2e.config.mts e2e/app.e2e.test.ts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ledger-lift-windows
+          path: dist/*-setup.exe
+
+      - name: Draft a GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*-setup.exe --draft --generate-notes --title "Ledger Lift $GITHUB_REF_NAME"

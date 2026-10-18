@@ -23,6 +23,33 @@ pnpm dev                # the real app, with hot reload
 pnpm dist               # an installer for this platform, in dist/
 ```
 
+## Measure how well it reads
+
+`pnpm score` reads your own pages with the real model and compares them to the correct rows you typed in. It reports, per field, how often the model was right, how many rows it missed or invented, and whether the fields it got wrong were the ones it highlighted for review.
+
+1. Make a private folder, such as `samples/private/mine/` (anything under `samples/private/` stays out of Git).
+2. For each page, add the photo and an answer file with the same name: `page1.jpg` and `page1.csv`, with the header `date,item,quantity,amount`. A photo without an answer file is read but not scored.
+3. Run it (Ollama must be installed; the app starts it):
+
+```sh
+LEDGER_SCORE_DIR=samples/private/mine pnpm score
+LEDGER_SCORE_MODEL=qwen3-vl:2b pnpm score   # optional: try another installed model
+```
+
+Dates match letter for letter, since the model is told not to normalize them. Capitalization, extra spaces, currency symbols and `5.00` vs `5` are forgiven for the headline numbers; the report also shows the strict letter-for-letter score. Details go to `score-report.json` in the same folder.
+
+Don't have handwritten pages yet? `docs/practice/` has a printable ruled page (`ledger-page.html`) and two sets of 15 sales with their answer files. Print the page, copy a set onto it in your own handwriting, photograph it in normal room light, and save the photo next to its `set-1.csv` or `set-2.csv`.
+
+## Release (Windows)
+
+Bump `version` in `package.json`, commit, then push a matching tag:
+
+```sh
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+The **Windows release** workflow (`.github/workflows/release-windows.yml`) runs the checks on a Windows machine, builds `Ledger-Lift-<version>-setup.exe`, smoke-tests the packaged app, and creates a **draft** GitHub release. Review it and press **Publish**. It also runs on every pull request and by hand from the Actions tab; those runs build the installer but make no release. The installer sets up for the current user only and needs no administrator rights.
+
 Checks:
 
 ```sh
@@ -47,10 +74,10 @@ If you start the app or tests from inside another Electron app (some editors and
 
 ## How it works
 
-- `src/renderer` is the Svelte interface, built with [shadcn-svelte](https://shadcn-svelte.com) (the Svelte port of shadcn/ui) on Tailwind v4, and it follows the system light or dark setting. Components live in `src/renderer/src/lib/components/ui`; the theme tokens are at the top of `src/renderer/src/app.css`, so changing `--primary` re-colours everything. Add more with `pnpm dlx shadcn-svelte@latest add <component>`. It shrinks each photo to 1600 px on the long edge before sending it. Full-size phone photos overflow the model's context window and slow it down.
+- `src/renderer` is the React interface, built with [shadcn/ui](https://ui.shadcn.com) components (on Radix) and Tailwind v4, and it follows the system light or dark setting. Components live in `src/renderer/src/components/ui`; the theme tokens are at the top of `src/renderer/src/app.css`, so changing `--primary` re-colours everything. It shrinks each photo to 1600 px on the long edge before sending it. Full-size phone photos overflow the model's context window and slow it down.
 - `src/main` is the app. It starts and stops Ollama, downloads the model with progress, keeps the model loaded between pages, and streams each finished row to the interface. Set `OLLAMA_HOST` if Ollama listens somewhere other than `127.0.0.1:11434`.
 - `src/preload` is the only bridge between them. The page is sandboxed with no Node access, and can't navigate away or open windows.
-- The default model is `qwen3-vl:2b-instruct`. The plain `qwen3-vl:2b` tag reasons for 30 to 100 seconds before answering, so avoid it. The model can be changed under **Advanced** in the app.
+- The default model is `qwen3-vl:2b-instruct`. The plain `qwen3-vl:2b` tag reasons for 30 to 100 seconds before answering, so avoid it. The model can be changed from the **Model** picker in the app.
 
 ## Current limits
 
