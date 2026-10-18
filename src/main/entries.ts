@@ -5,6 +5,15 @@ import type { Entry } from '../shared/types'
 export const FIELDS = ['date', 'item', 'quantity', 'amount'] as const
 const MAX_FIELD_CHARS = 500
 
+/**
+ * A digit the model was less sure of than this makes its field need a second look. On one handwritten page the
+ * digits it got right were all above 0.99 and a digit that turned out to be a misread was at 0.68, so this sits
+ * between them. Re-check it against more pages before leaning on it.
+ */
+export const LOW_CONFIDENCE = 0.9
+/** Fields whose digits are checked. Words vary in how they are tokenized, so only numbers are judged this way. */
+const NUMERIC_FIELDS = ['date', 'quantity', 'amount'] as const
+
 function fieldText(value: unknown): string {
   const text = typeof value === 'string' ? value : typeof value === 'number' ? String(value) : ''
   return [...text].slice(0, MAX_FIELD_CHARS).join('')
@@ -37,10 +46,16 @@ export class EntryStream {
   /** Nesting depth of the entries array, set when the first `[` is seen. */
   private arrayDepth: number | null = null
   private entryStart: number | null = null
+  /** How sure the model was of each character in `buffer`; 1 where it didn't say. */
+  private confidence: number[] = []
 
-  /** Adds streamed text and returns every entry completed by it. */
-  push(text: string): Entry[] {
+  /**
+   * Adds streamed text and returns every entry completed by it. `confidence` (0 to 1) is how sure the model was
+   * of this piece of text, when Ollama reports it.
+   */
+  push(text: string, confidence = 1): Entry[] {
     this.buffer += text
+    for (let i = 0; i < text.length; i++) this.confidence.push(confidence)
     const entries: Entry[] = []
     while (this.scanned < this.buffer.length) {
       const index = this.scanned++
@@ -69,7 +84,7 @@ export class EntryStream {
         case '}': {
           const closesEntry = this.arrayDepth !== null && this.depth === this.arrayDepth + 1
           if (closesEntry && this.entryStart !== null) {
-            const entry = this.parse(this.buffer.slice(this.entryStart, index + 1))
+            const entry = this.parse(this.entryStart, index + 1)
             if (entry) entries.push(entry)
             this.entryStart = null
           }
@@ -81,11 +96,31 @@ export class EntryStream {
     return entries
   }
 
-  private parse(text: string): Entry | null {
+  private parse(start: number, end: number): Entry | null {
+    const text = this.buffer.slice(start, end)
+    let entry: Entry | null
     try {
-      return cleanEntry(JSON.parse(text))
+      entry = cleanEntry(JSON.parse(text))
     } catch {
       return null
     }
+    if (!entry) return null
+    const doubtful = this.doubtfulFields(text, start)
+    entry.uncertainFields = FIELDS.filter((field) => entry.uncertainFields.includes(field) || doubtful.has(field))
+    return entry
+  }
+
+  /** The numeric fields in which the model was unsure of a digit. `start` is where `text` begins in the buffer. */
+  private doubtfulFields(text: string, start: number): Set<string> {
+    const doubtful = new Set<string>()
+    for (const field of NUMERIC_FIELDS) {
+      const match = new RegExp(`"${field}"\\s*:\\s*("(?:[^"\\\\]|\\\\.)*"|-?[\\d.,]+)`).exec(text)
+      if (!match) continue
+      const from = start + match.index + match[0].length - match[1].length
+      for (let i = from; i < from + match[1].length; i++) {
+        if (/\d/.test(this.buffer[i]) && this.confidence[i] < LOW_CONFIDENCE) doubtful.add(field)
+      }
+    }
+    return doubtful
   }
 }

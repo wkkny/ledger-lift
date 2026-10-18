@@ -1,0 +1,7 @@
+# Flag uncertain digits from the model's token probabilities
+
+The review step only helps if doubtful fields are highlighted, and the small local model never said it was unsure: asked to list `uncertain_fields`, it returned an empty list for every row of a handwritten test page, including two amounts that were misreads. So Ledger Lift also asks Ollama for token probabilities (`logprobs`) and highlights any date, quantity or amount containing a digit the model was less than 90% sure of (`LOW_CONFIDENCE` in `src/main/entries.ts`). On that page the misread digit that was a plain mistake sat at 68%, and every digit it got right was above 99%. Words and units are not judged this way, because how a word splits into tokens makes their probabilities noisy. The model's own `uncertain_fields` are still honoured.
+
+This catches a misread only when the model hesitated. A second misread on the same page (one amount) was read at 100% and is not flagged, so the review step still can't promise to catch every wrong number. The 0.9 threshold comes from one page; re-check it with `pnpm score` as more handwritten pages come in.
+
+The streamed `content` from Ollama holds back whitespace and cannot be lined up with tokens, so the text is rebuilt from each token's bytes, which also keeps characters that span two tokens intact. Older Ollama versions that don't report probabilities fall back to `content` and the model's own flags.
