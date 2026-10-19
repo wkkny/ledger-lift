@@ -5,7 +5,7 @@ import { statSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
 import { Agent, fetch, type Response } from 'undici'
 import type { Entry, ExtractOutcome, PullProgress, Status } from '../shared/types'
-import { EntryStream } from './entries'
+import { DittoFiller, EntryStream, isPlaceholder } from './entries'
 import { RepeatGuard } from './repeats'
 
 /** The plain `-instruct` tag. The default `qwen3-vl:2b` tag reasons for 30-100 s before answering. */
@@ -19,11 +19,12 @@ const MAX_IMAGE_BASE64_CHARS = 16 * 1024 * 1024
 const SYSTEM_PROMPT = `You extract handwritten sales ledger rows from a single page image.
 Return only a JSON object with an \`entries\` array. Each entry must have \`date\`, \`item\`,
 \`quantity\`, \`amount\`, and \`uncertain_fields\`. Use strings for values exactly as written;
-use an empty string when a value is missing or cannot be read. \`uncertain_fields\` is an
+use an empty string when a value is missing or cannot be read, never a placeholder such as x. \`uncertain_fields\` is an
 array containing any of date, item, quantity, amount that you could not read confidently.
 \`amount\` is what the sale came to: when the page has both a unit price and a total, use the
-total, not the unit price. When a date cell holds a ditto mark (a quote mark or two commas)
-or is empty, use the date from the row above. Skip days marked Nil or left blank.
+total, not the unit price. When a cell holds a ditto mark (a quote mark, 〃, or two commas),
+write the value from the row above in its place; when a date cell is empty, use the date from the row above. Skip days marked Nil, crossed out, or left blank:
+a cross means no sales that day.
 Do not invent values, calculate totals, normalize dates, or merge separate rows. Ignore
 headers, totals, and notes that are not individual sales. Keep entries in page order.`
 
@@ -275,10 +276,12 @@ export async function extract(
   let repeating = false
   // Aborted from here when the model starts looping; `signal` is the owner pressing Stop.
   const stopLoop = new AbortController()
+  const dittos = new DittoFiller()
   const emit = (entries: Entry[]) => {
-    for (const entry of entries) {
+    // Placeholder rows still pass through the repeat guard first, so a model looping on them is stopped.
+    for (const entry of entries.filter((entry) => !isPlaceholder(entry))) {
       count += 1
-      onEntry(entry)
+      onEntry(dittos.fill(entry))
     }
   }
   try {

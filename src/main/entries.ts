@@ -37,6 +37,51 @@ export function cleanEntry(value: unknown): Entry | null {
 }
 
 /**
+ * A cell saying nothing was sold. Owners write `Nil` or cross out a day with no sales, and the model reads the cross
+ * as `x` or `y` (or `×`, `✗`, `+`).
+ */
+const isFiller = (value: string) => /^[\s\-–—_.?*+xXyY×✗✘╳]*$/.test(value) || /^\W*nil\W*$/i.test(value)
+
+/**
+ * A row with no item, quantity, or amount: what a small model writes when it can't read a line, or when the photo
+ * is sideways. It is not a sale, so it is left out rather than shown for the owner to delete.
+ */
+export const isPlaceholder = (entry: Entry) => isFiller(entry.item) && isFiller(entry.quantity) && isFiller(entry.amount)
+
+/** A ditto mark as written (`"`, `''`, `,,`, `〃`, `do`) or as the model sometimes types it. */
+const DITTO = /^\s*(?:["“”″〃]|''|,,|-?do\.?-?)\s*$/i
+/**
+ * The model often reads a handwritten ditto mark as `11`. No date or item is just "11", so there it is a ditto. A
+ * quantity of 11 is real, unless the item beside it was a ditto too. An amount of 11 is always kept.
+ */
+const looksLikeDitto = (entry: Entry, field: (typeof FIELDS)[number]) => {
+  if (DITTO.test(entry[field])) return true
+  if (entry[field].trim() !== '11') return false
+  return field === 'date' || field === 'item' || (field === 'quantity' && /^\s*(?:11|["“”″〃]|''|,,)\s*$/.test(entry.item))
+}
+
+/**
+ * Fills a ditto mark with the value from the row above it, and marks the field for a second look since the mark
+ * may have been misread. The first row on a page has nothing above it, so its marks are left as they are.
+ */
+export class DittoFiller {
+  private previous: Entry | null = null
+
+  fill(entry: Entry): Entry {
+    const above = this.previous
+    if (above) {
+      const dittos = FIELDS.filter((field) => looksLikeDitto(entry, field) && above[field])
+      if (dittos.length > 0) {
+        entry = { ...entry, ...Object.fromEntries(dittos.map((field) => [field, above[field]])) }
+        entry.uncertainFields = FIELDS.filter((field) => entry.uncertainFields.includes(field) || dittos.includes(field))
+      }
+    }
+    this.previous = entry
+    return entry
+  }
+}
+
+/**
  * Incrementally reads entry objects out of a streamed `{"entries": [ {...}, {...} ]}` document,
  * so each row can be shown as soon as the model finishes writing it.
  */

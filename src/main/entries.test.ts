@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cleanEntry, EntryStream, LOW_CONFIDENCE } from './entries'
+import { cleanEntry, DittoFiller, EntryStream, isPlaceholder, LOW_CONFIDENCE } from './entries'
 
 const entry = (date: string, item: string, quantity: string, amount: string) => ({
   date,
@@ -137,5 +137,57 @@ describe('cleanEntry', () => {
     expect(cleanEntry('rice')).toBeNull()
     expect(cleanEntry(null)).toBeNull()
     expect(cleanEntry([1])).toBeNull()
+  })
+})
+
+describe('isPlaceholder', () => {
+  const entry = (item: string, quantity: string, amount: string) => ({ date: '19/02/26', item, quantity, amount, uncertainFields: [] })
+
+  it('spots a row with only filler marks where the sale should be', () => {
+    expect(isPlaceholder(entry('x', 'x', 'x'))).toBe(true)
+    expect(isPlaceholder(entry('', '-', '?'))).toBe(true)
+    expect(isPlaceholder(entry('x', 'y', 'Y'))).toBe(true) // a cross, read as x or y
+    expect(isPlaceholder(entry('✗', '+', '×'))).toBe(true)
+    expect(isPlaceholder(entry('Nil', '', ''))).toBe(true) // the owner's own word for no sales
+    expect(isPlaceholder(entry('NIL', '-', 'nil.'))).toBe(true)
+  })
+
+  it('keeps a row with anything real in it', () => {
+    expect(isPlaceholder(entry('Cip', '2', '20.00'))).toBe(false)
+    expect(isPlaceholder(entry('x', 'x', '40'))).toBe(false)
+    expect(isPlaceholder(entry('Xerox', '', ''))).toBe(false)
+    expect(isPlaceholder(entry('Yam', 'y', 'x'))).toBe(false)
+    expect(isPlaceholder(entry('Nilgiri tea', '1', ''))).toBe(false)
+  })
+})
+
+describe('DittoFiller', () => {
+  const sale = (date: string, item: string, quantity: string, amount: string) => ({ date, item, quantity, amount, uncertainFields: [] })
+  const fillAll = (rows: ReturnType<typeof sale>[]) => {
+    const filler = new DittoFiller()
+    return rows.map((row) => filler.fill(row))
+  }
+
+  it('copies the value above into a ditto mark and asks for a second look', () => {
+    const [, second] = fillAll([sale('01/03/26', 'Dolbora', '1 set', '1500'), sale('05/03/26', '"', '〃', '1500')])
+    expect(second).toEqual({ date: '05/03/26', item: 'Dolbora', quantity: '1 set', amount: '1500', uncertainFields: ['item', 'quantity'] })
+  })
+
+  it('reads 11 as a misread ditto in the date and item, and in the quantity beside a ditto item', () => {
+    const [, second] = fillAll([sale('01/03/26', 'Dolbora', '1 set', '1500'), sale('05/03/26', '11', '11', '1500')])
+    expect(second).toMatchObject({ item: 'Dolbora', quantity: '1 set' })
+    const [, third] = fillAll([sale('19/2/26', 'Clip', '2', '40'), sale('11', 'Sandal', '1', '300')])
+    expect(third.date).toBe('19/2/26')
+  })
+
+  it('keeps a real quantity or amount of 11, and any ditto on the first row', () => {
+    const [first, second] = fillAll([sale('"', 'Rice', '1', '50'), sale('5/10', 'Eggs', '11', '11')])
+    expect(first.date).toBe('"')
+    expect(second).toMatchObject({ quantity: '11', amount: '11', uncertainFields: [] })
+  })
+
+  it('fills a ditto from a row that was itself filled', () => {
+    const rows = fillAll([sale('5/10', 'Rice', '1', '50'), sale('"', 'Tea', '1', '20'), sale(',,', 'Salt', '1', '5')])
+    expect(rows.map((row) => row.date)).toEqual(['5/10', '5/10', '5/10'])
   })
 })
