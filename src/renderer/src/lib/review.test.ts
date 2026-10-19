@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canDownload, editField, markAllReviewed, needsAttention, reviewSummary, toRow, unreviewedCount } from './review';
+import { blankRow, canDownload, editField, markAllReviewed, needsAttention, reviewSummary, toRow, unreviewedCount } from './review';
 import type { Entry } from '@shared/types';
 
 const entry = (overrides: Partial<Entry> = {}): Entry => ({
@@ -12,6 +12,13 @@ const entry = (overrides: Partial<Entry> = {}): Entry => ({
 });
 
 describe('review', () => {
+  it('starts a hand-added row empty and unreviewed, on the date of the row above', () => {
+    const added = blankRow(toRow(entry({ date: '19/02/26' })));
+    expect(added).toMatchObject({ date: '19/02/26', item: '', quantity: '', amount: '', reviewed: false });
+    expect(blankRow().date).toBe('');
+    expect(needsAttention(added)).toBe(true);
+  });
+
   it('flags a row with a missing value or a value the model was unsure about', () => {
     expect(needsAttention(toRow(entry()))).toBe(false);
     expect(needsAttention(toRow(entry({ amount: '' })))).toBe(true);

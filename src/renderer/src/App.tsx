@@ -114,6 +114,12 @@ export default function App() {
     setNotice('')
   }
 
+  function removeRow(id: number) {
+    const index = rows.findIndex((row) => row.id === id)
+    if (index < keptRows) setKeptRows((count) => count - 1)
+    setRows((current) => current.filter((row) => row.id !== id))
+  }
+
   function restart() {
     setRows([])
     setKeptRows(0)
@@ -227,7 +233,7 @@ export default function App() {
 
           {showResults ? (
             <div className="flex min-w-0 flex-col gap-3">
-              <Results rows={rows} onRows={setRows} reading={reading} saving={saving} notice={notice} onSave={save} onRestart={restart} />
+              <Results rows={rows} onRows={setRows} onRemove={removeRow} reading={reading} saving={saving} notice={notice} onSave={save} onRestart={restart} />
             </div>
           ) : (
             <div className="text-muted-foreground grid min-h-64 place-items-center rounded-xl border border-dashed p-6 text-center text-sm">

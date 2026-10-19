@@ -90,6 +90,19 @@ describe('extract', () => {
     await vi.waitFor(() => expect(clientLeft).toBe(true))
   })
 
+  it('leaves out placeholder rows, and still stops a model looping on them', async () => {
+    const blank = (date: string) => `{"date": "${date}", "item": "x", "quantity": "x", "amount": "x", "uncertain_fields": []}`
+    handler = async (_request, response) => {
+      response.write(chatLine(`{"entries": [${blank('17/02/28')},${row('Cip')}`))
+      for (let i = 0; i < 200; i++) response.write(chatLine(`,${blank('19/02/26')}`))
+      response.end(chatLine(']}'))
+    }
+    const seen: Entry[] = []
+    const outcome = await extract('m', 'AAAA', new AbortController().signal, (entry) => seen.push(entry))
+    expect(outcome).toEqual({ count: 1, cancelled: false, repeating: true })
+    expect(seen.map((entry) => entry.item)).toEqual(['Cip'])
+  })
+
   it("explains Ollama's own error, such as an oversized image", async () => {
     handler = (_request, response) => {
       response.writeHead(400, { 'Content-Type': 'application/json' })
