@@ -106,6 +106,86 @@ describe('reading more than one page', () => {
 })
 
 describe('reading a page', () => {
+  it('lets the owner add a row the model missed and remove one it made up', async () => {
+    const { page, savePath } = await launch({
+      rows: [
+        { item: 'Rice 5kg', quantity: '1', amount: '1450' },
+        { item: 'Salt', quantity: '3', amount: '180' }
+      ]
+    })
+    await waitUntilReady(page)
+    await page.locator('input[type=file]').setInputFiles(photo)
+    await readButton(page).click()
+    await page.waitForFunction(() => document.querySelectorAll('tr.entry-row').length === 2)
+    await page.getByRole('button', { name: /Read this page/ }).waitFor()
+
+    await page.getByRole('button', { name: 'Add a row' }).click()
+    const added = rows(page).nth(2)
+    expect(await added.locator('input').first().inputValue()).toBe('5/10') // the date of the row above
+    await added.locator('input').nth(1).fill('Tea')
+    await added.locator('input').nth(2).fill('2')
+    await added.locator('input').nth(3).fill('90')
+    await page.getByRole('button', { name: 'Remove row 2' }).click()
+    expect(await page.locator('.entry-count').textContent()).toBe('2 entries')
+
+    await page.getByRole('button', { name: 'Mark all reviewed' }).click()
+    await page.getByRole('button', { name: /Download CSV/ }).click()
+    await page.getByText(/^Saved to /).waitFor()
+    expect(readFileSync(savePath, 'utf8').replace('\uFEFF', '').split('\r\n')).toEqual([
+      '"Date","Item or description","Quantity","Amount"',
+      '"5/10","Rice 5kg","1","1450"',
+      '"5/10","Tea","2","90"'
+    ])
+  })
+
+  it('keeps the review checkmark visible in light and dark themes', async () => {
+    const { page } = await launch({ rows: [{ item: 'Rice', quantity: '1', amount: '1450' }] })
+    await waitUntilReady(page)
+    await page.locator('input[type=file]').setInputFiles(photo)
+    await readButton(page).click()
+    const checkbox = page.getByRole('checkbox', { name: 'Mark row 1 reviewed' })
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await checkbox.check()
+
+    for (const colorScheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' })
+      await page.waitForFunction((dark) => document.documentElement.classList.contains('dark') === dark, colorScheme === 'dark')
+      // Allow the system-theme media query and its color transitions to settle.
+      await checkbox.evaluate(async (element) => {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        await Promise.all(element.getAnimations().map((animation) => animation.finished))
+      })
+      const contrast = await checkbox.evaluate((element) => {
+        const canvas = document.createElement('canvas')
+        canvas.width = canvas.height = 1
+        const context = canvas.getContext('2d')!
+        context.fillStyle = '#fff'
+        context.fillRect(0, 0, 1, 1)
+        const ancestors: Element[] = []
+        for (let current: Element | null = element; current; current = current.parentElement) ancestors.unshift(current)
+        for (const ancestor of ancestors) {
+          context.fillStyle = getComputedStyle(ancestor).backgroundColor
+          context.fillRect(0, 0, 1, 1)
+        }
+        const backgroundPixel = context.getImageData(0, 0, 1, 1).data
+        const background = `rgb(${backgroundPixel[0]}, ${backgroundPixel[1]}, ${backgroundPixel[2]})`
+        const luminance = (color: string) => {
+          context.fillStyle = color
+          context.fillRect(0, 0, 1, 1)
+          const rgb = Array.from(context.getImageData(0, 0, 1, 1).data).slice(0, 3).map((channel) => {
+            const value = channel / 255
+            return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+          })
+          return rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722
+        }
+        const stroke = getComputedStyle(element.querySelector('svg')!).stroke
+        const values = [luminance(background), luminance(stroke)].sort((a, b) => b - a)
+        return { background, stroke, ratio: (values[0] + 0.05) / (values[1] + 0.05) }
+      })
+      expect(contrast.ratio, `${colorScheme}: ${JSON.stringify(contrast)}`).toBeGreaterThanOrEqual(3)
+    }
+  })
+
   it('shows each row while the page is still being read, then saves the reviewed rows as a CSV', async () => {
     const { page, savePath } = await launch({
       rows: [

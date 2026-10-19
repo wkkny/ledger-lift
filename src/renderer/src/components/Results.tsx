@@ -1,11 +1,11 @@
-import { ArrowLeft, CheckCheck, Download, Info, LoaderCircle } from 'lucide-react'
+import { ArrowLeft, CheckCheck, Download, Info, LoaderCircle, Plus, Trash2 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { FIELDS, canDownload, editField, isUncertain, markAllReviewed, needsAttention, reviewSummary, unreviewedCount, type FieldKey, type Row } from '@/lib/review'
+import { FIELDS, blankRow, canDownload, editField, isUncertain, markAllReviewed, needsAttention, reviewSummary, unreviewedCount, type FieldKey, type Row } from '@/lib/review'
 import { cn } from '@/lib/utils'
 
 /** Narrowest each column may get, so a long date such as 03/11/2025 is never cut off. */
@@ -14,6 +14,7 @@ const MIN_WIDTH: Record<FieldKey, string> = { date: 'min-w-32', item: 'min-w-36'
 type Props = {
   rows: Row[]
   onRows: (rows: Row[]) => void
+  onRemove: (id: number) => void
   reading: boolean
   saving: boolean
   notice: string
@@ -21,7 +22,7 @@ type Props = {
   onRestart: () => void
 }
 
-export function Results({ rows, onRows, reading, saving, notice, onSave, onRestart }: Props) {
+export function Results({ rows, onRows, onRemove, reading, saving, notice, onSave, onRestart }: Props) {
   const remaining = unreviewedCount(rows)
   const update = (id: number, change: (row: Row) => Row) => onRows(rows.map((row) => (row.id === id ? change(row) : row)))
 
@@ -48,7 +49,7 @@ export function Results({ rows, onRows, reading, saving, notice, onSave, onResta
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 {FIELDS.map(({ key, label }) => <TableHead key={key} className="bg-muted/50 px-3.5 text-xs tracking-wide uppercase">{label}</TableHead>)}
-                <TableHead className="bg-muted/50 w-28 px-3.5 text-xs tracking-wide uppercase">Review</TableHead>
+                <TableHead className="bg-muted/50 w-36 px-3.5 text-xs tracking-wide uppercase">Review</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -71,15 +72,27 @@ export function Results({ rows, onRows, reading, saving, notice, onSave, onResta
                     </TableCell>
                   ))}
                   <TableCell className="row-status">
-                    <label className="flex min-h-8 cursor-pointer items-center gap-2 text-xs">
-                      <Checkbox
-                        className="review-checkbox"
-                        aria-label={`Mark row ${index + 1} reviewed`}
-                        checked={row.reviewed}
-                        onCheckedChange={(checked) => update(row.id, (current) => ({ ...current, reviewed: checked === true }))}
-                      />
-                      Reviewed
-                    </label>
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="flex min-h-8 cursor-pointer items-center gap-2 text-xs">
+                        <Checkbox
+                          className="review-checkbox"
+                          aria-label={`Mark row ${index + 1} reviewed`}
+                          checked={row.reviewed}
+                          onCheckedChange={(checked) => update(row.id, (current) => ({ ...current, reviewed: checked === true }))}
+                        />
+                        Reviewed
+                      </label>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="remove-row text-muted-foreground hover:text-destructive"
+                        aria-label={`Remove row ${index + 1}`}
+                        disabled={reading}
+                        onClick={() => onRemove(row.id)}
+                      >
+                        <Trash2 aria-hidden="true" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -98,6 +111,10 @@ export function Results({ rows, onRows, reading, saving, notice, onSave, onResta
             </TableBody>
           </Table>
         </div>
+
+        <Button variant="outline" size="sm" className="add-row" disabled={reading} onClick={() => onRows([...rows, blankRow(rows.at(-1))])}>
+          <Plus aria-hidden="true" />Add a row
+        </Button>
 
         <div className="border-border/70 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
           <span className="text-muted-foreground text-sm">{reviewSummary(remaining, reading)}</span>

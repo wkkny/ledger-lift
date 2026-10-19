@@ -18,6 +18,11 @@ export function toRow(entry: Entry): Row {
   return { ...entry, id: nextId++, reviewed: false };
 }
 
+/** An empty row the owner fills in by hand, for a line the model missed. It takes the date of the row above. */
+export function blankRow(previous?: Row): Row {
+  return toRow({ date: previous?.date ?? '', item: '', quantity: '', amount: '', uncertainFields: [] });
+}
+
 export function isUncertain(row: Row, key: FieldKey): boolean {
   return !row[key] || row.uncertainFields.includes(key);
 }
