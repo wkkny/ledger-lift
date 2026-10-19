@@ -44,12 +44,13 @@ export function Results({ rows, onRows, onRemove, reading, saving, notice, onSav
           </AlertDescription>
         </Alert>
 
-        <div className="ring-border/70 overflow-x-auto rounded-lg ring-1">
-          <Table>
+        <div className="ring-border/70 overflow-hidden rounded-lg ring-1">
+          {/* Only the rows scroll, so the buttons below and the page stay put; the header stays visible. */}
+          <Table containerClassName="max-h-[max(16rem,calc(100dvh-29rem))] overflow-y-auto">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                {FIELDS.map(({ key, label }) => <TableHead key={key} className="bg-muted/50 px-3.5 text-xs tracking-wide uppercase">{label}</TableHead>)}
-                <TableHead className="bg-muted/50 w-36 px-3.5 text-xs tracking-wide uppercase">Review</TableHead>
+                {FIELDS.map(({ key, label }) => <TableHead key={key} className="bg-muted sticky top-0 z-10 px-3.5 text-xs tracking-wide uppercase">{label}</TableHead>)}
+                <TableHead className="bg-muted sticky top-0 z-10 w-36 px-3.5 text-xs tracking-wide uppercase">Review</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
