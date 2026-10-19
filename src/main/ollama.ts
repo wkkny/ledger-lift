@@ -144,11 +144,33 @@ export function parsePullLine(line: string): PullProgress {
   }
 }
 
+/** The answer's shape, handed to Ollama so every model uses the same keys (Gemma otherwise invents `sales_entries`). */
+export const ANSWER_SCHEMA = {
+  type: 'object',
+  properties: {
+    entries: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          date: { type: 'string' },
+          item: { type: 'string' },
+          quantity: { type: 'string' },
+          amount: { type: 'string' },
+          uncertain_fields: { type: 'array', items: { type: 'string', enum: ['date', 'item', 'quantity', 'amount'] } }
+        },
+        required: ['date', 'item', 'quantity', 'amount', 'uncertain_fields']
+      }
+    }
+  },
+  required: ['entries']
+}
+
 export function chatRequest(model: string, imageBase64: string) {
   return {
     model,
     stream: true,
-    format: 'json',
+    format: ANSWER_SCHEMA,
     logprobs: true, // lets a digit the model was unsure of be marked for review
     keep_alive: KEEP_ALIVE,
     messages: [
