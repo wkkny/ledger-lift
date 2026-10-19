@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { baseUrl, chatRequest, DEFAULT_MODEL, KEEP_ALIVE, LineBuffer, modelInstalled, NUM_CTX, ChatReply, parsePullLine } from './ollama'
+import { ANSWER_SCHEMA, baseUrl, chatRequest, DEFAULT_MODEL, KEEP_ALIVE, LineBuffer, modelInstalled, NUM_CTX, ChatReply, parsePullLine } from './ollama'
 
 const bytes = (text: string) => new TextEncoder().encode(text)
 
@@ -7,7 +7,7 @@ describe('chatRequest', () => {
   it('streams, and keeps the context and warmth settings', () => {
     const request = chatRequest('m', 'AAAA')
     expect(request.stream).toBe(true)
-    expect(request.format).toBe('json')
+    expect(request.format).toBe(ANSWER_SCHEMA)
     expect(request.keep_alive).toBe(KEEP_ALIVE)
     expect(request.logprobs).toBe(true)
     // A ledger photo plus its answer overflows Ollama's default 4096-token context.

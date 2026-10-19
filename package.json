@@ -1,6 +1,6 @@
 {
   "name": "ledger-lift",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Turn a photo of a handwritten sales ledger into reviewed rows and a CSV, on your own computer.",
   "private": true,
   "license": "MIT",
